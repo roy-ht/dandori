@@ -1,0 +1,8 @@
+[flake8]
+docstring-convention = google
+max-line-length = 120
+ignore = E203, W503, D100, D101, D104, D105, D403, D415
+exclude =
+    .git,
+    __pycache__,
+    tests/*

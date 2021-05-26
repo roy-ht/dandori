@@ -1,0 +1,32 @@
+default_stages: [commit, push]
+fail_fast: true
+repos:
+  - repo: https://github.com/pycqa/isort
+    rev: 5.5.4
+    hooks:
+      - id: isort
+  - repo: https://github.com/ambv/black
+    rev: 21.5b1
+    hooks:
+      - id: black
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: '3.8.3'
+    hooks:
+      - id: flake8
+        additional_dependencies: [flake8-docstrings]
+  - repo: local
+    hooks:
+      - id: install-pylint
+        name: install-pylint
+        entry: python -m pip install pylint
+        language: system
+        types: [python]
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: python -m pylint.__main__
+        language: system
+        types: [python]
+        files: src/

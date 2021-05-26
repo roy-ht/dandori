@@ -1,0 +1,13 @@
+name: EVENT_TEST
+on: [issue_comment]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - run: pip install .
+      - run: dandori run -f sample/dandori.yaml
