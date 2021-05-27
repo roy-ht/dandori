@@ -36,7 +36,7 @@ target-version = ["py39"]
 
 [tool.dandori]
 handlers = [
-    {local = 'dandori'}
+    {local = 'ci_handler'}
 ]
 
 [build-system]
