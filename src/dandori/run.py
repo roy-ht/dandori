@@ -50,7 +50,12 @@ class Runner:
                 L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
                 continue
             L.verbose1("%s: execute handler for %s", handler.name, ctx.gh.event_name)
-            r = func(ctx)
+            try:
+                r = func(ctx)
+            except Exception as e:
+                L.info("::error::%s", e)
+                raise
+
             if isinstance(r, dict):
                 ctx.resp.append_dict(handler.name, r)
             elif isinstance(r, dandori.response.Response):

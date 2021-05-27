@@ -178,6 +178,7 @@ class Handler:
 @dataclasses.dataclass
 class Config:
     handlers: list[Handler]
+    cwd: pathlib.Path = pathlib.Path(".").absolute()  # current directory at instance generation point
 
 
 class ConfigLoader:

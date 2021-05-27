@@ -1,5 +1,5 @@
-name: EVENT_TEST
-on: [issue_comment]
+name: dandori_action
+on: [pull_request]
 
 jobs:
   run:
@@ -10,4 +10,4 @@ jobs:
         with:
           python-version: '3.9'
       - run: pip install .
-      - run: dandori run -f sample/dandori.yaml
+      - run: dandori run -vvvv

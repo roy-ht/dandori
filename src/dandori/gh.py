@@ -2,8 +2,12 @@ import json
 import os
 import pathlib
 import typing as T
+import urllib.error
 
 from ghapi.all import GhApi
+
+HTTPError = urllib.error.HTTPError
+URLError = urllib.error.URLError
 
 
 class GitHub:
@@ -25,6 +29,10 @@ class GitHub:
             with self._path.open() as f:
                 self.payload = json.load(f)
         self.api = GhApi(owner=self.owner, repo=self.name)
+        #
+        if self.event_name == "issue_comment":
+            if self.is_pull_request():
+                self.event_name = "pull_request_comment"
 
     def create_comment(self, body: str):
         """Create comment to its issue/pull_request"""
@@ -54,3 +62,38 @@ class GitHub:
         elif "pull_request" in self.payload:
             return self.payload["pull_request"]["number"]
         return None
+
+    def is_pull_request(self):
+        """event is related to pull request (pull request, pull request comment)"""
+        if self.event_name == "pull_request":
+            return True
+        elif "pull_request" in self.payload.get("issue", {}):
+            return True
+        return False
+
+    def latest_release_tag(self) -> str:
+        """Return latest relesed tag"""
+        try:
+            resp = self.api.get_latest_release()
+        except HTTPError as e:
+            if e.code == 404:
+                return ""
+        return resp.tag_name
+
+    def has_tag(self, tag: str):
+        """Check a tag already exists"""
+        results = self.api.list_tags(tag)
+        refs = [x.ref for x in results]
+        return f"refs/tags/{tag}" in refs
+
+    def pull_request(self, number: int = None):
+        """Get pull request details"""
+        if number is None:
+            number = self.issue_number
+        try:
+            result = self.api.pulls.get(number)
+        except HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
+        return result

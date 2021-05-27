@@ -36,8 +36,7 @@ target-version = ["py39"]
 
 [tool.dandori]
 handlers = [
-    {local = "sample/remote_handler"},
-    {local = 'sample/handler'}
+    {local = 'dandori'}
 ]
 
 [build-system]
