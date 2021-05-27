@@ -111,23 +111,25 @@ class GitHandlerLoader(HandlerLoader):
         op = Operation()
         dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
         L.verbose2("git clone: url=%s, revision=%s, path=%s", self._url, self._revision, self._path)
+        envvar = {}
         if self._key:
             L.verbose3("Using key file: %s", self._key)
+            envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key} -F /dev/null"
         dstdir.mkdir(parents=True, exist_ok=True)
         cwd = str(dstdir)
-        op.run(["git", "init"], cwd=cwd)
-        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd)
+        op.run(["git", "init"], cwd=cwd, env=envvar)
+        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd, env=envvar)
         rev = self._revision
         if not rev:
-            r = op.run(["git", "remote", "show", "origin"], cwd=cwd)
+            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar)
             mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
             if mo:
                 rev = mo[1].strip()
             else:
                 rev = "main"
             L.verbose2("Revision automatically set: %s", rev)
-        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd)
-        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd)
+        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, env=envvar)
+        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, env=envvar)
         shutil.rmtree(dstdir.joinpath(".git"))
         if self._path:
             return dstdir.joinpath(self._path)

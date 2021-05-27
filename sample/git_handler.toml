@@ -1,5 +1,0 @@
-[dandori]
-handlers = [
-    {git = "git@github.com:roy-ht/dandori-test.git", path = "package_type_handler"},
-    {local = 'handler'}
-]
