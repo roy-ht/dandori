@@ -53,7 +53,7 @@ class Runner:
             try:
                 r = func(ctx)
             except Exception as e:
-                L.info("::error::%s", e)
+                print(f"::error::{e}")
                 raise
 
             if isinstance(r, dict):
