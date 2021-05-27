@@ -11,3 +11,5 @@ jobs:
           python-version: '3.9'
       - run: pip install .
       - run: dandori -vvvv run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
