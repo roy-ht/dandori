@@ -7,12 +7,14 @@ import dandori.run
 
 def run(args):
     """entrypoint of run command"""
-    cfg = args.config_file
-    if cfg is None:
-        cfg = pathlib.Path("dandori.toml")
-    if not cfg.exists():
-        cfg = pathlib.Path("pyproject.toml")
-    runner = dandori.run.Runner(cfg)
+    cpath = args.config_file
+    if cpath is None:
+        cpath = pathlib.Path("dandori.toml")
+    else:
+        cpath = pathlib.Path(cpath)
+    if not cpath.exists():
+        cpath = pathlib.Path("pyproject.toml")
+    runner = dandori.run.Runner(cpath)
     runner.execute()
 
 

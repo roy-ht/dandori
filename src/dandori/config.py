@@ -4,6 +4,7 @@ import dataclasses
 import importlib
 import pathlib
 import pprint
+import re
 import shutil
 import typing as T
 
@@ -11,6 +12,7 @@ import tomlkit
 
 import dandori.log
 from dandori import env
+from dandori.ops import Operation
 
 if T.TYPE_CHECKING:
     from dandori.context import Context
@@ -78,21 +80,59 @@ class GitHandlerLoader(HandlerLoader):
     def __init__(
         self,
         name: str,
-        path: str,
+        url: str,
         revision: T.Optional[str] = None,
-        subdir: T.Optional[str] = None,
+        path: T.Optional[str] = None,
         key: T.Optional[str] = None,
     ):
         """Handler loader for git url"""
         super().__init__(name)
-        self._path = path
+        self._url = url
         self._revision = revision
-        self._subdir = subdir
+        self._path = path or ""
         self._key = key
 
-    def deploy_packaget(self):
+    def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
-        raise NotImplementedError()
+        cloned_path = self._clone()
+        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        if not cloned_path.exists():
+            raise ValueError(f"{cloned_path} does not exist")
+        if cloned_path.is_file():
+            shutil.copy(cloned_path, rootdir.joinpath(self._module_name + ".py"))
+        else:
+            pkgdir = rootdir.joinpath(self._module_name)
+            if pkgdir.exists():
+                shutil.rmtree(pkgdir)
+            shutil.copytree(cloned_path, pkgdir)
+
+    def _clone(self):
+        """Clone this repo into dst"""
+        op = Operation()
+        dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
+        L.verbose2("git clone: url=%s, revision=%s, path=%s", self._url, self._revision, self._path)
+        if self._key:
+            L.verbose3("Using key file: %s", self._key)
+        dstdir.mkdir(parents=True, exist_ok=True)
+        cwd = str(dstdir)
+        op.run(["git", "init"], cwd=cwd)
+        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd)
+        rev = self._revision
+        if not rev:
+            r = op.run(["git", "remote", "show", "origin"], cwd=cwd)
+            mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
+            if mo:
+                rev = mo[1].strip()
+            else:
+                rev = "main"
+            L.verbose2("Revision automatically set: %s", rev)
+        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd)
+        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd)
+        shutil.rmtree(dstdir.joinpath(".git"))
+        if self._path:
+            return dstdir.joinpath(self._path)
+        else:
+            return dstdir
 
 
 class Handler:
@@ -164,7 +204,7 @@ class ConfigLoader:
             name = d.get("name", f"package_{i}")
             if "git" in d:
                 loader: HandlerLoader = GitHandlerLoader(
-                    name=name, path=d["git"], revision=d.get("revision"), subdir=d.get("subdir"), key=d.get("key")
+                    name=name, url=d["git"], revision=d.get("revision"), path=d.get("path"), key=d.get("key")
                 )
             elif "local" in d:
                 path = d["local"]
