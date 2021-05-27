@@ -34,7 +34,7 @@ class GitHub:
 
     def comment_body(self) -> str:
         """Get comment body if exists"""
-        return self.payload.get("body", "")
+        return self.payload.get("comment", {}).get("body", "")
 
     @property
     def owner(self) -> str:

@@ -1,4 +1,5 @@
 import argparse
+import pathlib
 
 import dandori.log
 import dandori.run
@@ -6,7 +7,12 @@ import dandori.run
 
 def run(args):
     """entrypoint of run command"""
-    runner = dandori.run.Runner(args.config_file)
+    cfg = args.config_file
+    if cfg is None:
+        cfg = pathlib.Path("dandori.toml")
+    if not cfg.exists():
+        cfg = pathlib.Path("pyproject.toml")
+    runner = dandori.run.Runner(cfg)
     runner.execute()
 
 
@@ -17,7 +23,7 @@ def main():
     sub_psrs = psr.add_subparsers(dest="command_name", required=True, metavar="command_name")
     psr_run = sub_psrs.add_parser("run", help="Running CI Action")
     psr_run.set_defaults(func=run)
-    psr_run.add_argument("-f", "--config-file", default="dandori.yaml", help="dandori.yaml configuration file path")
+    psr_run.add_argument("-f", "--config-file", help="toml configuration file path")
     args = psr.parse_args()
 
     # set log level

@@ -27,7 +27,7 @@ _LEVELS = {
     NOTSET: ("NOTSET", "N"),
 }
 
-DEFAULT_FORMAT = "[%(shortlevelname)s] %(message)s"
+DEFAULT_FORMAT = "%(prefix)s%(message)s"
 
 
 class ModuleLogFormatter(logging.Formatter):
@@ -44,6 +44,7 @@ class ModuleLogFormatter(logging.Formatter):
         """custom format"""
         levelname = _LEVELS.get(record.levelno)
         if levelname:
+            record.prefix = levelname[0].capitalize() + ": " if record.levelno > INFO else ""
             record.levelname = levelname[0]
             record.shortlevelname = levelname[1]
         else:
@@ -102,7 +103,7 @@ def set_level(level: T.Union[str, int]):
         raise ValueError(f"Unknown level: {level}")
     get_logger().setLevel(lvl)
     if lvl <= DEBUG:
-        set_format("[%(pathname)s(%(lineno)s):%(funcName)s]" + DEFAULT_FORMAT)
+        set_format("[%(pathname)s(%(lineno)s):%(funcName)s] " + DEFAULT_FORMAT)
 
 
 def set_format(fmt):

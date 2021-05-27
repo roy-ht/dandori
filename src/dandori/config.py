@@ -1,133 +1,178 @@
+from __future__ import annotations
+
 import dataclasses
 import importlib
 import pathlib
+import pprint
 import shutil
+import typing as T
 
-import yaml
+import tomlkit
 
+import dandori.log
 from dandori import env
 
-
-@dataclasses.dataclass
-class PackagePath:
-    kind: str  # local, git, remote
-    path: str
-    subdir: str = ""  # git only
-    revision: str = ""  # git only
+if T.TYPE_CHECKING:
+    from dandori.context import Context
 
 
-class Package:
+L = dandori.log.get_logger(__name__)
+
+
+class Condition:
+    def __init__(self, src: T.Optional[dict] = None):
+        """Represents handler condition to execute function or not
+
+        Args:
+            src (T.Optional[dict], optional): configuration object. Defaults to None.
+        """
+        self._src = src
+
+    def check(self, ctx: Context):  # pylint: disable=unused-argument
+        """Check if execute handler or not"""
+        L.warning("Condition check does not implemented yet")
+        return True
+
+
+class HandlerLoader:
+    def __init__(self, module_name: str):
+        """Base class of handler loader"""
+        self._module_name = module_name
+
+    @property
+    def module_name(self):
+        """module name. dynamically loaded full package name is dandori.handlers.{module_name}"""
+        return self._module_name
+
+    def load_module(self):
+        """load module"""
+        return importlib.import_module(f"dandori.handlers.{self._module_name}")
+
+    def deploy_package(self):
+        """retrieve package files and place it to temporal package directory"""
+        raise NotImplementedError()
+
+
+class LocalHandlerLoader(HandlerLoader):
+    def __init__(self, name: str, path: pathlib.Path):
+        """Handler loader for local path"""
+        super().__init__(name)
+        self._path = path
+
+    def deploy_package(self):
+        """Retrieve package files and place it to temporal package directory"""
+        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        path = pathlib.Path(self._path)
+        if not path.exists():
+            raise ValueError(f"{path} does not exist")
+        if path.is_file():
+            shutil.copy(path, rootdir.joinpath(self._module_name + ".py"))
+        else:
+            pkgdir = rootdir.joinpath(self._module_name)
+            if pkgdir.exists():
+                shutil.rmtree(pkgdir)
+            shutil.copytree(path, pkgdir)
+
+
+class GitHandlerLoader(HandlerLoader):
+    def __init__(
+        self,
+        name: str,
+        path: str,
+        revision: T.Optional[str] = None,
+        subdir: T.Optional[str] = None,
+        key: T.Optional[str] = None,
+    ):
+        """Handler loader for git url"""
+        super().__init__(name)
+        self._path = path
+        self._revision = revision
+        self._subdir = subdir
+        self._key = key
+
+    def deploy_packaget(self):
+        """Retrieve package files and place it to temporal package directory"""
+        raise NotImplementedError()
+
+
+class Handler:
     """Load user module/package/script and run specific function"""
 
-    def __init__(self, name: str, path: PackagePath):
+    def __init__(self, loader: HandlerLoader):
         """user defined script package/module"""
-        self._name = name
-        self._path = path
+        self._loader = loader
         self._mod = None
+        self._loader.deploy_package()
 
     @property
     def name(self):
-        """package name in yaml configuration"""
-        return self._name
+        """module/package name in configuration or automatically named"""
+        return self._loader.module_name
 
-    def get_function(self, func_name: str):
+    def get_function(self, event_name: str):
         """Run function corresponding to the action name
 
         Args:
-            func_name (str): an function name of this package
+            event_name (str): an event name to handle
         """
-        self._mod = self._load_module()
+        func_name = f"handle_{event_name}"
+        self._load_module()
         return getattr(self._mod, func_name, None)
 
-    def _load_module(self):
-        self._deploy_package()
-        return importlib.import_module(f"dandori.packages.{self._name}")
-
-    def _deploy_package(self):
-        rootdir = pathlib.Path(env.tempdir().name).joinpath("packages")
-        rootdir.mkdir(exist_ok=True)
-        rootdir.joinpath("__init__.py").touch()
-        if self._path.kind == "local":
-            path = pathlib.Path(self._path.path)
-            if not path.exists():
-                raise ValueError(f"{path} does not exist")
-            if path.is_file():
-                shutil.copy(path, rootdir.joinpath(self._name + ".py"))
-            elif path.is_dir():
-                pkgdir = rootdir.joinpath(self._name)
-                if pkgdir.exists():
-                    shutil.rmtree(pkgdir)
-                shutil.copytree(path, pkgdir)
+    def get_condition(self, event_name: str):
+        """Get condition object correspond to event"""
+        self._load_module()
+        if not hasattr(self._mod, "conditions"):
+            return Condition()
         else:
-            raise NotImplementedError()
+            conditions = self._mod.conditions()  # type: ignore
+            return Condition(conditions[event_name])
 
-
-@dataclasses.dataclass
-class Condition:
-    types: list[str]
-    branches: list[str]
-    branches_ignore: list[str]
-    tags: list[str]
-    tags_ignore: list[str]
-    paths: list[str]
-    paths_ignore: list[str]
+    def _load_module(self):
+        if self._mod is None:
+            self._mod = self._loader.load_module()
 
 
 @dataclasses.dataclass
 class Config:
-    packages: list[Package]
-    conditions: dict[str, Condition]
+    handlers: list[Handler]
 
 
 class ConfigLoader:
     """Load local/remote configurations and script/package"""
 
     def load(self, path: pathlib.Path):
-        """load dandori.yaml configuration file"""
-        with path.open() as f:
-            yaml_conf = yaml.safe_load(f)
-        return Config(
-            packages=self._parse_packages(yaml_conf, path.parent), conditions=self._parse_conditions(yaml_conf)
-        )
+        """load toml configuration file"""
+        with path.open("r", encoding="utf-8") as f:
+            conf = tomlkit.parse(f.read())
+        if "dandori" in conf.get("tool", {}):  # pyproject.toml support
+            conf = conf["tool"]
+        if "dandori" not in conf:
+            raise ValueError(f"{path}: dandori section not found in your config file")
+        conf = conf["dandori"]
+        L.debug("Config: %s", pprint.pformat(conf))
+        return Config(handlers=self._parse_handlers(conf, path.parent))
 
-    def _parse_conditions(self, conf: dict) -> dict[str, "Condition"]:
-        d = {}
-        for key, value in conf.get("conditions", {}):
-            d[key] = Condition(
-                types=value.get("types", []),
-                branches=value.get("branches", []),
-                branches_ignore=value.get("branches_ignore", []),
-                tags=value.get("tags", []),
-                tags_ignore=value.get("tags_ignore", []),
-                paths=value.get("paths", []),
-                paths_ignore=value.get("paths_ignore", []),
-            )
-        return d
-
-    def _parse_packages(self, conf: dict, basedir: pathlib.Path):
-        packages = []
-        for i, pkg in enumerate(conf.get("packages", [])):
-            if isinstance(pkg, str):
-                name = f"package-{i}"
-                path = pkg if pathlib.Path(pkg).is_absolute() else str(basedir.joinpath(pkg))
-                package_path = PackagePath(kind="local", path=path)
-            elif isinstance(pkg, dict):
-                name = pkg.get("name", f"package-{i}")
-                if "git" in pkg:
-                    package_path = PackagePath(
-                        kind="git",
-                        path=pkg["git"]["path"],
-                        revision=pkg["git"]["revision"],
-                        subdir=pkg["git"]["subdir"],
-                    )
-                elif "path" in pkg:
-                    path = (
-                        pkg["path"] if pathlib.Path(pkg["path"]).is_absolute() else str(basedir.joinpath(pkg["path"]))
-                    )
-                    package_path = PackagePath(kind="local", path=path)
-                else:
-                    raise ValueError(f"Unknown action: {pkg}")
+    def _parse_handlers(self, conf: dict, basedir: pathlib.Path):
+        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        rootdir.mkdir(exist_ok=True)
+        rootdir.joinpath("__init__.py").touch()
+        handlers = []
+        for i, d in enumerate(conf.get("handlers", [])):
+            if not isinstance(d, dict):
+                raise ValueError(f"handlers.{i} must be dict")
+            name = d.get("name", f"package_{i}")
+            if "git" in d:
+                loader: HandlerLoader = GitHandlerLoader(
+                    name=name, path=d["git"], revision=d.get("revision"), subdir=d.get("subdir"), key=d.get("key")
+                )
+            elif "local" in d:
+                path = d["local"]
+                if not pathlib.Path(path).is_absolute():
+                    path = str(basedir.joinpath(path))
+                loader = LocalHandlerLoader(name=name, path=path)
             else:
-                raise ValueError(f"Unknown action: {pkg}")
-            packages.append(Package(name, package_path))
-        return packages
+                raise ValueError(f"Unknown handler type: {d}")
+            handlers.append(Handler(loader))
+            L.verbose3("Add handlers: %s", name)
+        return handlers

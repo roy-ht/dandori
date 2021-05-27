@@ -1,5 +1,10 @@
 {
-    "pull_request": {
+    "action": "created",
+    "comment": {
+        "author_association": "OWNER",
+        "body": "/greet"
+    },
+    "issue": {
         "number": 1
     }
 }

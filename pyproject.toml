@@ -7,8 +7,8 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-PyYAML = "^5.4.1"
 ghapi = "^0.1.17"
+tomlkit = "^0.7.2"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.23.1"
@@ -33,6 +33,12 @@ attr-rgx = "[a-z_][a-z0-9_]*$"
 [tool.black]
 line-length = 120
 target-version = ["py39"]
+
+[tool.dandori]
+handlers = [
+    {local = "sample/remote_handler"},
+    {local = 'sample/handler'}
+]
 
 
 [build-system]
