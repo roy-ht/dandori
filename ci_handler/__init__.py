@@ -12,7 +12,7 @@ def cmd_release(ctx):
     if not pr.merged:
         ctx.gh.create_comment("Please merge your pull request first!")
         ctx.ops.fail("Please merge your pull request first!")
-    target_sha = pr.merged_commit_sha
+    target_sha = pr.merge_commit_sha
     tag = _version_from_pyproject_toml(ctx)
     if ctx.gh.has_tag(tag):
         ctx.gh.create_comment(f"Release tag already exists: {tag}")
