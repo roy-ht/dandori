@@ -33,6 +33,9 @@ class GitHub:
         if self.event_name == "issue_comment":
             if self.is_pull_request():
                 self.event_name = "pull_request_comment"
+        if self.event_name == "pull_request":
+            if self.payload.get("action") == "synchronize":
+                self.event_name = "pull_request_push"
 
     def create_comment(self, body: str):
         """Create comment to its issue/pull_request"""
