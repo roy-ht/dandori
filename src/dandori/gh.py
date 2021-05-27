@@ -100,3 +100,7 @@ class GitHub:
                 return None
             raise
         return result
+
+    def create_release(self, *args, **kwargs):
+        """Shorthand for api.create_release"""
+        self.api.create_release(*args, **kwargs)
