@@ -61,6 +61,6 @@ def _get_version(ctx):
 
 def _set_version(ctx, tag):
     path = ctx.cfg.cwd.joinpath("pyproject.toml")
-    conf = ctx.ops.parse_toml()
+    conf = ctx.ops.parse_toml(path)
     conf["tool"]["poetry"]["version"] = tag
     ctx.ops.dump_toml(conf, path)
