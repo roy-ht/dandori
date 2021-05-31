@@ -35,7 +35,7 @@ class Operation:
     def run_venv(self, *args, python_path="python", **kwargs):
         """Run command with virtualenv"""
         env = self._prepare_venv(python_path)
-        kwargs.setdefault(env, {}).update(env)
+        kwargs.setdefault("env", {}).update(env)
         self.run(*args, **kwargs)
 
     def parse_toml(self, path: str, encoding="utf-8"):
