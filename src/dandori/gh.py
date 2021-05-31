@@ -73,8 +73,10 @@ class GitHub:
                 if self._pull_request is None:
                     if "pull_request" in self.payload:
                         self._pull_request = self.payload["pull_request"]
+                        L.debug("pull_request object from payload: keys=%s", self._pull_request.keys())
                     else:
                         self._pull_request = self.api.pulls.get(self.issue_number)
+                        L.debug("pull_request object from API: keys=%s", self._pull_request.keys())
                 return self._pull_request
             else:
                 return self.api.pulls.get(number)
