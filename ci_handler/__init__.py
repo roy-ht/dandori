@@ -14,7 +14,7 @@ def cmd_release_test(ctx):
     tag = _get_release_tag(ctx)
     # upload to test pypi
     files = _release_to_pypi(ctx, tag)
-    ctx.gh.create_comment("Uploaded files to test PyPI: " + ", ".join(str(x) for x in files))
+    ctx.gh.create_comment("Uploaded files to test PyPI: " + ", ".join(x.name for x in files))
 
 
 def cmd_release(ctx):
@@ -28,7 +28,7 @@ def cmd_release(ctx):
     # upload to pypi
     files = _release_to_pypi(ctx, tag, test=False)
     ctx.gh.create_release(tag, branch=target_sha, body=f"Release {tag} by #{ctx.gh.issue_number}")
-    ctx.gh.create_comment("Uploaded files to PyPI: " + ", ".join(str(x) for x in files))
+    ctx.gh.create_comment("Uploaded files to PyPI: " + ", ".join(x.name for x in files))
 
 
 def _release_to_pypi(ctx, tag, test=True):

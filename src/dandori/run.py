@@ -51,11 +51,11 @@ class Runner:
                 continue
             L.verbose1("%s: execute handler for %s", handler.name, ctx.gh.event_name)
             try:
-                r = func(ctx)
+                with ctx.gh.check(f"dandori_{ctx.gh.event_name}"):
+                    r = func(ctx)
             except Exception as e:
                 print(f"::error::{e}")
                 raise
-
             if isinstance(r, dict):
                 ctx.resp.append_dict(handler.name, r)
             elif isinstance(r, dandori.response.Response):

@@ -14,7 +14,11 @@ L = dandori.log.get_logger(__name__)
 class Operation:
     def fail(self, message):
         """Fail action with some message"""
-        raise dandori.exception.DandoriError(message)
+        raise dandori.exception.Failure(message)
+
+    def cancel(self, message):
+        """Cancel action with some message"""
+        raise dandori.exception.Cancel(message)
 
     def run(self, *args, **kwargs):
         """subprocess wrapper"""
@@ -54,7 +58,7 @@ class Operation:
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
             self.run_venv(["pip", "install", "-U", "pip"])
         if not venv_dir.exists():
-            raise dandori.exception.DandoriError(f"Virtualenv directory does not exist: {venv_dir}")
+            raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
         return {
             "VIRTUAL_ENV": str(venv_dir),
             "PATH": f"{venv_dir}/bin:{os.environ['PATH']}",

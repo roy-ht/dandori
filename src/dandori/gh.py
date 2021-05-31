@@ -1,11 +1,14 @@
+import contextlib
 import json
 import os
 import pathlib
 import typing as T
 import urllib.error
 
+import fastcore.basics
 from ghapi.all import GhApi
 
+import dandori.exception
 import dandori.log
 import dandori.ops
 
@@ -29,11 +32,12 @@ class GitHub:
         self.job: str = os.environ["GITHUB_JOB"]
         self.run_number: int = int(os.environ["GITHUB_RUN_NUMBER"])
         self.run_id: int = int(os.environ["GITHUB_RUN_ID"])
-        self.payload: dict = {}
+        self.payload: fastcore.basics.AttrDict = fastcore.basics.AttrDict()
         if self._path.exists():
             with self._path.open() as f:
-                self.payload = json.load(f)
+                self.payload = fastcore.basics.AttrDict(json.load(f))
         self.api = GhApi(owner=self.owner, repo=self.name)
+        self._pull_request = {}
         #
         if self.event_name == "issue_comment":
             if self.is_pull_request():
@@ -42,16 +46,6 @@ class GitHub:
         if self.event_name == "pull_request":
             if self.payload.get("action") == "synchronize":
                 self.event_name = "pull_request_push"
-
-    def create_comment(self, body: str):
-        """Create comment to its issue/pull_request"""
-        if not self.issue_number:
-            raise ValueError("issue number not found.")
-        self.api.issues.create_comment(self.issue_number, body)
-
-    def comment_body(self) -> str:
-        """Get comment body if exists"""
-        return self.payload.get("comment", {}).get("body", "")
 
     @property
     def owner(self) -> str:
@@ -71,6 +65,23 @@ class GitHub:
         elif "pull_request" in self.payload:
             return self.payload["pull_request"]["number"]
         return None
+
+    def pull_request(self, number: int = None):
+        """Get pull request details"""
+        try:
+            if number is None and self.is_pull_request():
+                if self._pull_request is None:
+                    if "pull_request" in self.payload:
+                        self._pull_request = self.payload["pull_request"]
+                    else:
+                        self._pull_request = self.api.pulls.get(self.issue_number)
+                return self._pull_request
+            else:
+                return self.api.pulls.get(number)
+        except HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
 
     def is_pull_request(self):
         """event is related to pull request (pull request, pull request comment)"""
@@ -95,27 +106,46 @@ class GitHub:
         refs = [x.ref for x in results]
         return f"refs/tags/{tag}" in refs
 
-    def pull_request(self, number: int = None):
-        """Get pull request details"""
-        if number is None:
-            number = self.issue_number
-        try:
-            result = self.api.pulls.get(number)
-        except HTTPError as e:
-            if e.code == 404:
-                return None
-            raise
-        return result
+    def create_comment(self, body: str):
+        """Create comment to its issue/pull_request"""
+        if not self.issue_number:
+            raise ValueError("issue number not found.")
+        self.api.issues.create_comment(self.issue_number, body)
+
+    def comment_body(self) -> str:
+        """Get comment body if exists"""
+        return self.payload.get("comment", {}).get("body", "")
 
     def create_release(self, *args, **kwargs):
         """Shorthand for api.create_release"""
         self.api.create_release(*args, **kwargs)
 
+    @contextlib.contextmanager
+    def check(self, name: str, sha=None):
+        """Some proc with GitHub Checks API"""
+        if sha is None:
+            if self.is_pull_request():
+                sha = self.pull_request()["head"]["sha"]
+            elif self.sha:
+                sha = self.sha
+        try:
+            conclusion = "success"
+            check = self.api.checks.create(name=name, head_sha=sha, status="in_progress")
+            yield
+        except dandori.exception.Cancel:
+            conclusion = "cancelled"
+            raise
+        except Exception:
+            conclusion = "failure"
+            raise
+        finally:
+            self.api.checks.update(name=name, check_run_id=check, status="completed", conclusion=conclusion)
+
     def _checkout_pull_request_branch(self):
         if pathlib.Path(".git").is_dir():
             ops = dandori.ops.Operation()
             pr = self.pull_request()
-            ref = pr.merge_commit_sha
+            ref = pr["merge_commit_sha"]
             L.info("Checkout to merge commit of PR #%d: %s", self.issue_number, ref)
             ops.run(["git", "fetch", "origin", f"+{ref}:refs/remotes/origin/merge_commit"])
             ops.run(["git", "checkout", "--force", "-B", "merge_commit", "refs/remotes/origin/merge_commit"])
