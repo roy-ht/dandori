@@ -6,8 +6,13 @@ import urllib.error
 
 from ghapi.all import GhApi
 
+import dandori.log
+import dandori.ops
+
 HTTPError = urllib.error.HTTPError
 URLError = urllib.error.URLError
+
+L = dandori.log.get_logger(__name__)
 
 
 class GitHub:
@@ -33,6 +38,7 @@ class GitHub:
         if self.event_name == "issue_comment":
             if self.is_pull_request():
                 self.event_name = "pull_request_comment"
+                self._checkout_pull_request_branch()
         if self.event_name == "pull_request":
             if self.payload.get("action") == "synchronize":
                 self.event_name = "pull_request_push"
@@ -104,3 +110,12 @@ class GitHub:
     def create_release(self, *args, **kwargs):
         """Shorthand for api.create_release"""
         self.api.create_release(*args, **kwargs)
+
+    def _checkout_pull_request_branch(self):
+        if pathlib.Path(".git").is_dir():
+            ops = dandori.ops.Operation()
+            pr = self.pull_request()
+            ref = pr.merge_commit_sha
+            L.info("Checkout to merge commit of PR #%d: %s", self.issue_number, ref)
+            ops.run(["git", "fetch", "origin", f"+{ref}:refs/remotes/origin/merge_commit"])
+            ops.run(["git", "checkout", "--force", "-B", "merge_commit", "refs/remotes/origin/merge_commit"])
