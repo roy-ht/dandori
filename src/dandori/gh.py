@@ -37,7 +37,7 @@ class GitHub:
             with self._path.open() as f:
                 self.payload = fastcore.basics.AttrDict(json.load(f))
         self.api = GhApi(owner=self.owner, repo=self.name)
-        self._pull_request = {}
+        self._pull_request = None
         #
         if self.event_name == "issue_comment":
             if self.is_pull_request():
@@ -69,15 +69,18 @@ class GitHub:
     def pull_request(self, number: int = None):
         """Get pull request details"""
         try:
-            if number is None and self.is_pull_request():
-                if self._pull_request is None:
-                    if "pull_request" in self.payload:
-                        self._pull_request = self.payload["pull_request"]
-                        L.debug("pull_request object from payload: keys=%s", self._pull_request.keys())
-                    else:
-                        self._pull_request = self.api.pulls.get(self.issue_number)
-                        L.debug("pull_request object from API: keys=%s", self._pull_request.keys())
-                return self._pull_request
+            if number is None:
+                if self.is_pull_request():
+                    if self._pull_request is None:
+                        if "pull_request" in self.payload:
+                            self._pull_request = self.payload["pull_request"]
+                            L.debug("pull_request object from payload: keys=%s", self._pull_request.keys())
+                        else:
+                            self._pull_request = self.api.pulls.get(self.issue_number)
+                            L.debug("pull_request object from API: keys=%s", self._pull_request.keys())
+                    return self._pull_request
+                else:
+                    return self._pull_request
             else:
                 return self.api.pulls.get(number)
         except HTTPError as e:
