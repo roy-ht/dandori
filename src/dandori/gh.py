@@ -144,7 +144,7 @@ class GitHub:
             conclusion = "failure"
             raise
         finally:
-            self.api.checks.update(name=name, check_run_id=check, status="completed", conclusion=conclusion)
+            self.api.checks.update(name=name, check_run_id=check.id, status="completed", conclusion=conclusion)
 
     def _checkout_pull_request_branch(self):
         if pathlib.Path(".git").is_dir():
