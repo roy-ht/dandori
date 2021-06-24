@@ -55,7 +55,7 @@ class Runner:
             if not func:
                 L.verbose1("%s: function %s not found", handler.name, func_name)
                 continue
-            L.verbose1("%s: execute ", handler.name, func_name)
+            L.verbose1("%s: execute %s", handler.name, func_name)
             try:
                 with ctx.gh.check(f"dandori::{ctx.gh.event_name}"):
                     r = func(ctx)
