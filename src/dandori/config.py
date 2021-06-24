@@ -7,8 +7,7 @@ import pprint
 import shutil
 import typing as T
 
-import fastcore.basics
-import tomlkit
+from box import Box
 
 import dandori.log
 from dandori import env
@@ -106,7 +105,7 @@ class Handler:
 class Config:
     handlers: list[Handler]
     cwd: pathlib.Path = pathlib.Path(".").absolute()  # current directory at instance generation point
-    options: fastcore.basics.AttrDict = dataclasses.field(default_factory=fastcore.basics.AttrDict)
+    options: Box = dataclasses.field(default_factory=Box)
 
 
 class ConfigLoader:
@@ -114,8 +113,7 @@ class ConfigLoader:
 
     def load(self, path: pathlib.Path):
         """load toml configuration file"""
-        with path.open("r", encoding="utf-8") as f:
-            conf = tomlkit.parse(f.read())
+        conf = Box.from_toml(filename=str(path))
         if "dandori" in conf.get("tool", {}):  # pyproject.toml support
             conf = conf["tool"]
         if "dandori" not in conf:
@@ -145,5 +143,5 @@ class ConfigLoader:
             L.verbose3("Add handlers: %s", name)
         return handlers
 
-    def _parse_options(self, conf: dict):
-        return fastcore.basics.AttrDict(conf.get("options", {}))
+    def _parse_options(self, conf: Box):
+        return conf.get("options", Box())

@@ -1,11 +1,10 @@
 import contextlib
-import json
 import os
 import pathlib
 import typing as T
 import urllib.error
 
-import fastcore.basics
+from box import Box
 from ghapi.all import GhApi
 
 import dandori.exception
@@ -32,10 +31,9 @@ class GitHub:
         self.job: str = os.environ["GITHUB_JOB"]
         self.run_number: int = int(os.environ["GITHUB_RUN_NUMBER"])
         self.run_id: int = int(os.environ["GITHUB_RUN_ID"])
-        self.payload: fastcore.basics.AttrDict = fastcore.basics.AttrDict()
+        self.payload: Box = Box()
         if self._path.exists():
-            with self._path.open() as f:
-                self.payload = fastcore.basics.AttrDict(json.load(f))
+            self.payload = Box.from_json(filename=str(self._path))
         self.api = GhApi(owner=self.owner, repo=self.name)
         self._pull_request = None
         #
@@ -66,7 +64,7 @@ class GitHub:
             return self.payload["pull_request"]["number"]
         return None
 
-    def pull_request(self, number: int = None):
+    def pull_request(self, number: int = None) -> Box:
         """Get pull request details"""
         try:
             if number is None:
@@ -76,16 +74,16 @@ class GitHub:
                             self._pull_request = self.payload["pull_request"]
                             L.debug("pull_request object from payload: keys=%s", self._pull_request.keys())
                         else:
-                            self._pull_request = self.api.pulls.get(self.issue_number)
+                            self._pull_request = Box(self.api.pulls.get(self.issue_number))
                             L.debug("pull_request object from API: keys=%s", self._pull_request.keys())
                     return self._pull_request
                 else:
                     return self._pull_request
             else:
-                return self.api.pulls.get(number)
+                return Box(self.api.pulls.get(number))
         except HTTPError as e:
             if e.code == 404:
-                return None
+                return Box()
             raise
 
     def is_pull_request(self):
@@ -105,13 +103,13 @@ class GitHub:
                 return ""
         return resp.tag_name
 
-    def has_tag(self, tag: str):
+    def has_tag(self, tag: str) -> bool:
         """Check a tag already exists"""
         results = self.api.list_tags(tag)
         refs = [x.ref for x in results]
         return f"refs/tags/{tag}" in refs
 
-    def has_label(self, name: T.Union[str, frozenset[str], set[str], list[str], tuple[str]]):
+    def has_label(self, name: T.Union[str, frozenset[str], set[str], list[str], tuple[str]]) -> bool:
         """Return True if issue/pull_request has an label"""
         labels = self.payload.get("issue", {}).get("labels")
         if not labels:

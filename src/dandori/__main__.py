@@ -1,21 +1,22 @@
 import argparse
+import json
 import pathlib
+
+from box import Box
 
 import dandori.log
 import dandori.run
 
 
 def _parse_options(lines):
-    options = {}
+    options = Box(box_docs=True)
     if lines:
         for line in lines:
-            key, value = line.split("=", 1)
-            chains = key.split(".")
-            tgt = options
-            for k in chains[:-1]:
-                tgt.setdefault(k, {})
-                tgt = tgt[k]
-            tgt[chains[-1]] = value
+            kvs = line.split("=", 1)
+            if len(kvs) == 1:
+                options[kvs[0]] = True
+            else:
+                options[kvs[0]] = json.loads(kvs[1])
     return options
 
 

@@ -203,6 +203,21 @@ optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "python-box"
+version = "5.3.0"
+description = "Advanced Python dictionaries with dot notation access"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+pyyaml = ["pyyaml"]
+all = ["ruamel.yaml", "toml", "msgpack"]
+msgpack = ["msgpack"]
+"ruamel.yaml" = ["ruamel.yaml"]
+toml = ["toml"]
+
+[[package]]
 name = "tomlkit"
 version = "0.7.2"
 description = "Style preserving TOML library"
@@ -235,7 +250,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "71cc88b0e1168951970715662ad35cc37d329852a061e43a8c9f4b5def916be6"
+content-hash = "007f21b73c6048dfd6b2c335602027bea3c88de5e9fe488bae0fbfc06b10f624"
 
 [metadata.files]
 appnope = [
@@ -308,6 +323,10 @@ pygments = [
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
+]
+python-box = [
+    {file = "python-box-5.3.0.tar.gz", hash = "sha256:4ed4ef5d34de505a65c01e3f1911de8cdb29484fcae0c035141dce535c6c194a"},
+    {file = "python_box-5.3.0-py3-none-any.whl", hash = "sha256:f2a531f9f5bbef078c175fad6abb31e9b59d40d121ea79993197e6bb221c6be6"},
 ]
 tomlkit = [
     {file = "tomlkit-0.7.2-py2.py3-none-any.whl", hash = "sha256:173ad840fa5d2aac140528ca1933c29791b79a374a0861a80347f42ec9328117"},

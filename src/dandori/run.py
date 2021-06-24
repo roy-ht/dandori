@@ -4,6 +4,8 @@ import pathlib
 import sys
 import typing as T
 
+from box import Box
+
 import dandori.response
 
 from . import env, log
@@ -30,7 +32,7 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path: pathlib.Path, options: dict):
+    def __init__(self, path: pathlib.Path, options: Box):
         """Running some user defined function"""
         self._cfg_path = path
         self._options = options
@@ -73,7 +75,7 @@ class Runner:
         # load Github Actions Events
         gh = GitHub()
         config = ConfigLoader().load(self._cfg_path)
-        self._update_options(self._options, config.options)
+        config.options.merge_update(self._options)
         L.verbose3("Options: %s", config.options)
         ops = Operation()
         resp = dandori.response.Responses()
@@ -88,12 +90,3 @@ class Runner:
         finally:
             tempdir.cleanup()
         sys.meta_path.remove(HandlerFinder)
-
-    def _update_options(self, d1, d2):
-        """merge contents of d1 into d2"""
-        for key, value in d1.items():
-            if isinstance(value, dict):
-                d2.setdefault(key, {})
-                self._update_options(value, d2[key])
-            else:
-                d2[key] = value
