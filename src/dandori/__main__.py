@@ -12,7 +12,7 @@ def _parse_options(lines):
             key, value = line.split("=", 1)
             chains = key.split(".")
             tgt = options
-            for k in chains[-1:]:
+            for k in chains[:-1]:
                 tgt.setdefault(k, {})
                 tgt = tgt[k]
             tgt[chains[-1]] = value

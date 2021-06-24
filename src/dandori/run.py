@@ -74,6 +74,7 @@ class Runner:
         gh = GitHub()
         config = ConfigLoader().load(self._cfg_path)
         self._update_options(self._options, config.options)
+        L.verbose3("Options: %s", config.options)
         ops = Operation()
         resp = dandori.response.Responses()
         return Context(gh=gh, cfg=config, ops=ops, resp=resp)
