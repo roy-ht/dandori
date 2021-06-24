@@ -218,12 +218,12 @@ msgpack = ["msgpack"]
 toml = ["toml"]
 
 [[package]]
-name = "tomlkit"
-version = "0.7.2"
-description = "Style preserving TOML library"
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "traitlets"
@@ -250,7 +250,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "007f21b73c6048dfd6b2c335602027bea3c88de5e9fe488bae0fbfc06b10f624"
+content-hash = "f9939734ea417f247b2f2000650ed2f7b36eb6ecebca229e8d6faad8ba6ff305"
 
 [metadata.files]
 appnope = [
@@ -328,9 +328,9 @@ python-box = [
     {file = "python-box-5.3.0.tar.gz", hash = "sha256:4ed4ef5d34de505a65c01e3f1911de8cdb29484fcae0c035141dce535c6c194a"},
     {file = "python_box-5.3.0-py3-none-any.whl", hash = "sha256:f2a531f9f5bbef078c175fad6abb31e9b59d40d121ea79993197e6bb221c6be6"},
 ]
-tomlkit = [
-    {file = "tomlkit-0.7.2-py2.py3-none-any.whl", hash = "sha256:173ad840fa5d2aac140528ca1933c29791b79a374a0861a80347f42ec9328117"},
-    {file = "tomlkit-0.7.2.tar.gz", hash = "sha256:d7a454f319a7e9bd2e249f239168729327e4dd2d27b17dc68be264ad1ce36754"},
+toml = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
 traitlets = [
     {file = "traitlets-5.0.5-py3-none-any.whl", hash = "sha256:69ff3f9d5351f31a7ad80443c2674b7099df13cc41fc5fa6e2f6d3b0330b0426"},
