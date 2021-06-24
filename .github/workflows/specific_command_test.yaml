@@ -1,0 +1,17 @@
+name: dandori_action
+on:
+  pull_request:
+    types: [locked]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - run: pip install .
+      - run: dandori -vvvv -r hello -o "hello.name=dandori"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
