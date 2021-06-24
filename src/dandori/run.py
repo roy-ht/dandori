@@ -43,20 +43,21 @@ class Runner:
 
     def _execute(self, ctx: Context, run_command: T.Optional[str]):
         for handler in ctx.cfg.handlers:
-            if run_command:
-                func = handler.get_function(f"cmd_{run_command}")
-            else:
-                func = handler.get_function(f"handle_{ctx.gh.event_name}")
-            if not func:
-                L.verbose1("%s: function handler for %s not found", handler.name, ctx.gh.event_name)
-                continue
             condition = handler.get_condition(ctx.gh.event_name)
             if not condition.check(ctx):
                 L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
                 continue
-            L.verbose1("%s: execute handler for %s", handler.name, ctx.gh.event_name)
+            if run_command:
+                func_name = f"cmd_{run_command}"
+            else:
+                func_name = f"handle_{ctx.gh.event_name}"
+            func = handler.get_function(func_name)
+            if not func:
+                L.verbose1("%s: function %s not found", handler.name, func_name)
+                continue
+            L.verbose1("%s: execute ", handler.name, func_name)
             try:
-                with ctx.gh.check(f"dandori_{ctx.gh.event_name}"):
+                with ctx.gh.check(f"dandori::{ctx.gh.event_name}"):
                     r = func(ctx)
             except Exception as e:
                 print(f"::error::{e}")

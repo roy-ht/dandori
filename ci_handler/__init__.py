@@ -49,7 +49,7 @@ def cmd_release(ctx):
 
 
 def cmd_hello(ctx):
-    ctx.gh.create_comment(f"Hello^^ {ctx.config.options.hello.name}")
+    ctx.gh.create_comment(f"Hello^^ {ctx.cfg.options.hello.name}")
 
 
 def _release_to_pypi(ctx, tag, test=True):
