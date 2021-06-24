@@ -19,8 +19,9 @@ def _parse_options(lines):
     return options
 
 
-def main(args):
+def main():
     """entrypoint of dandori command"""
+    args = _parse_args()
     cpath = args.config_file
     if cpath is None:
         cpath = pathlib.Path("dandori.toml")
@@ -56,4 +57,4 @@ def _parse_args():
 
 
 if __name__ == "__main__":
-    main(_parse_args())
+    main()
