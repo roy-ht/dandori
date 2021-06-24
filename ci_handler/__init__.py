@@ -1,13 +1,30 @@
 # flake8: noqa
+
+
 def handle_pull_request_comment(ctx):
     body = ctx.gh.comment_body().strip()
-    if body.startswith("/release-test"):
-        cmd_release_test(ctx)
+    if body.startswith("/standby-release"):
+        cmd_standby_release(ctx)
+        cmd_check_release(ctx)
     elif body.startswith("/release"):
+        cmd_release()
+    else:
+        if ctx.gh.has_label("release"):
+            cmd_check_release(ctx)
+
+
+def handle_pull_request(ctx):
+    pr = ctx.gh.pull_request()
+    if ctx.gh.has_label("release") and ctx.gh.payload["action"] == "closed" and pr.merged:
         cmd_release(ctx)
 
 
-def cmd_release_test(ctx):
+def cmd_standby_release(ctx):
+    # Add label to PR
+    ctx.gh.add_or_create_label("release", color="000000")
+
+
+def cmd_check_release(ctx):
     """Release test"""
     pr = ctx.gh.pull_request()
     target_sha = pr.merge_commit_sha
@@ -29,6 +46,10 @@ def cmd_release(ctx):
     files = _release_to_pypi(ctx, tag, test=False)
     ctx.gh.create_release(tag, branch=target_sha, body=f"Release {tag} by #{ctx.gh.issue_number}")
     ctx.gh.create_comment("Uploaded files to PyPI: " + ", ".join(x.name for x in files))
+
+
+def cmd_hello(ctx):
+    ctx.gh.create_comment(f"Hello^^ {ctx.config.options.hello.name}")
 
 
 def _release_to_pypi(ctx, tag, test=True):

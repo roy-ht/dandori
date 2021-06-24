@@ -7,6 +7,7 @@ import pprint
 import shutil
 import typing as T
 
+import fastcore.basics
 import tomlkit
 
 import dandori.log
@@ -78,13 +79,12 @@ class Handler:
         """module/package name in configuration or automatically named"""
         return self._loader.module_name
 
-    def get_function(self, event_name: str):
+    def get_function(self, func_name: str):
         """Run function corresponding to the action name
 
         Args:
-            event_name (str): an event name to handle
+            func_name (str): function name to get
         """
-        func_name = f"handle_{event_name}"
         self._load_module()
         return getattr(self._mod, func_name, None)
 
@@ -106,6 +106,7 @@ class Handler:
 class Config:
     handlers: list[Handler]
     cwd: pathlib.Path = pathlib.Path(".").absolute()  # current directory at instance generation point
+    options: fastcore.basics.AttrDict = dataclasses.field(default_factory=fastcore.basics.AttrDict)
 
 
 class ConfigLoader:
@@ -121,7 +122,7 @@ class ConfigLoader:
             raise ValueError(f"{path}: dandori section not found in your config file")
         conf = conf["dandori"]
         L.debug("Config: %s", pprint.pformat(conf))
-        return Config(handlers=self._parse_handlers(conf, path.parent))
+        return Config(handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf))
 
     def _parse_handlers(self, conf: dict, basedir: pathlib.Path):
         rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
@@ -143,3 +144,6 @@ class ConfigLoader:
             handlers.append(Handler(loader))
             L.verbose3("Add handlers: %s", name)
         return handlers
+
+    def _parse_options(self, conf: dict):
+        return fastcore.basics.AttrDict(conf.get("options", {}))

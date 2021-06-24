@@ -11,6 +11,6 @@ jobs:
           python-version: '3.9'
       - run: pip install .
       - run: echo '${{ secrets.PYPIRC }}' > .pypirc
-      - run: dandori -vvvv run
+      - run: dandori -vvvv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

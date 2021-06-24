@@ -2,6 +2,7 @@ import contextlib
 import importlib.machinery
 import pathlib
 import sys
+import typing as T
 
 import dandori.response
 
@@ -29,19 +30,23 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path, options: dict):
         """Running some user defined function"""
         self._cfg_path = path
+        self._options = options
 
-    def execute(self):
+    def execute(self, run_command=None):
         """Setup config, execute function"""
         ctx = self._create_context()
         with self._setup():
-            self._execute(ctx)
+            self._execute(ctx, run_command)
 
-    def _execute(self, ctx: Context):
+    def _execute(self, ctx: Context, run_command: T.Optional[str]):
         for handler in ctx.cfg.handlers:
-            func = handler.get_function(ctx.gh.event_name)
+            if run_command:
+                func = handler.get_function(f"cmd_{run_command}")
+            else:
+                func = handler.get_function(f"handle_{ctx.gh.event_name}")
             if not func:
                 L.verbose1("%s: function handler for %s not found", handler.name, ctx.gh.event_name)
                 continue
@@ -67,6 +72,7 @@ class Runner:
         # load Github Actions Events
         gh = GitHub()
         config = ConfigLoader().load(self._cfg_path)
+        self._update_options(self._options, config.options)
         ops = Operation()
         resp = dandori.response.Responses()
         return Context(gh=gh, cfg=config, ops=ops, resp=resp)
@@ -80,3 +86,12 @@ class Runner:
         finally:
             tempdir.cleanup()
         sys.meta_path.remove(HandlerFinder)
+
+    def _update_options(self, d1, d2):
+        """merge contents of d1 into d2"""
+        for key, value in d1.items():
+            if isinstance(value, dict):
+                d2.setdefault(key, {})
+                self._update_options(value, d2[key])
+            else:
+                d2[key] = value

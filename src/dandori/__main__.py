@@ -5,8 +5,22 @@ import dandori.log
 import dandori.run
 
 
-def run(args):
-    """entrypoint of run command"""
+def _parse_options(lines):
+    options = {}
+    if lines:
+        for line in lines:
+            key, value = line.split("=", 1)
+            chains = key.split(".")
+            tgt = options
+            for k in chains[-1:]:
+                tgt.setdefault(k, {})
+                tgt = tgt[k]
+            tgt[chains[-1]] = value
+    return options
+
+
+def main(args):
+    """entrypoint of dandori command"""
     cpath = args.config_file
     if cpath is None:
         cpath = pathlib.Path("dandori.toml")
@@ -14,18 +28,17 @@ def run(args):
         cpath = pathlib.Path(cpath)
     if not cpath.exists():
         cpath = pathlib.Path("pyproject.toml")
-    runner = dandori.run.Runner(cpath)
-    runner.execute()
+    options = _parse_options(args.options)
+    runner = dandori.run.Runner(cpath, options=options)
+    runner.execute(args.run_command)
 
 
-def main():
-    """entrypoint of dandori command"""
+def _parse_args():
     psr = argparse.ArgumentParser()
     psr.add_argument("-v", "--verbose", default=0, action="count")
-    sub_psrs = psr.add_subparsers(dest="command_name", required=True, metavar="command_name")
-    psr_run = sub_psrs.add_parser("run", help="Running CI Action")
-    psr_run.set_defaults(func=run)
-    psr_run.add_argument("-f", "--config-file", help="toml configuration file path")
+    psr.add_argument("-f", "--config-file", help="toml configuration file path")
+    psr.add_argument("-r", "--run-command", help="Invoke specific command instead of handler")
+    psr.add_argument("-o", "--options", action="append", help="optional arguments")
     args = psr.parse_args()
 
     # set log level
@@ -38,8 +51,9 @@ def main():
             4: dandori.log.DEBUG,
         }.get(args.verbose, dandori.log.INFO)
     )
-    args.func(args)
+
+    return args
 
 
 if __name__ == "__main__":
-    main()
+    main(_parse_args())

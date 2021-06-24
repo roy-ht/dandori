@@ -111,6 +111,39 @@ class GitHub:
         refs = [x.ref for x in results]
         return f"refs/tags/{tag}" in refs
 
+    def has_label(self, name: T.Union[str, frozenset[str], set[str], list[str], tuple[str]]):
+        """Return True if issue/pull_request has an label"""
+        labels = self.payload.get("issue", {}).get("labels")
+        if not labels:
+            if self.is_pull_request():
+                pr = self.pull_request()
+                if pr and "labels" in pr:
+                    labels = pr["labels"]
+        if labels:
+            for label in labels:
+                if isinstance(name, str) and label["name"] == name:
+                    return True
+                elif isinstance(name, (list, tuple, set, frozenset)) and label["name"] in name:
+                    return True
+        return False
+
+    def add_or_create_label(self, name, color=None):
+        """Add a label to issue"""
+        # call api manualy. See related issue: https://github.com/fastai/ghapi/issues/69
+        # check the label exists and create with color
+        try:
+            label = self.api.issues.get_label(name)
+        except HTTPError as e:
+            if e.code == 404:
+                # create label
+                label = self.api.issues.create_label(name, color)
+        self.api.__call__(
+            path=self.api.issues.add_labels.path,
+            verb=self.api.issues.add_labels.verb,
+            route=dict(issue_number=self.issue_number),
+            data=dict(labels=[label.name]),
+        )
+
     def create_comment(self, body: str):
         """Create comment to its issue/pull_request"""
         if not self.issue_number:
