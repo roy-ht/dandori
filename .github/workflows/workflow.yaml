@@ -1,8 +1,44 @@
 name: dandori_action
-on: [pull_request, issue_comment]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  issue_comment:
+    types: [created]
 
 jobs:
-  run:
+  pr-comment:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v3
+        id: get-pr
+        with:
+          script: |
+            const request = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            }
+            core.info(`Getting PR #${request.pull_number} from ${request.owner}/${request.repo}`)
+            try {
+              const result = await github.pulls.get(request)
+              return result.data
+            } catch (err) {
+              core.setFailed(`Request failed with error ${err}`)
+            }
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ fromJSON(steps.get-pr.outputs.result).merge_commit_sha }}
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - run: pip install .
+      - run: echo '${{ secrets.PYPIRC }}' > .pypirc
+      - run: dandori -vvvv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  other:
+    if: "!github.event.issue.pull_request"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -11,6 +47,6 @@ jobs:
           python-version: '3.9'
       - run: pip install .
       - run: echo '${{ secrets.PYPIRC }}' > .pypirc
-      - run: dandori -vvvv run
+      - run: dandori -vvvv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
