@@ -8,15 +8,15 @@ def handle_pull_request_comment(ctx):
         cmd_check_release(ctx)
     elif body.startswith("/release"):
         cmd_release()
-    else:
-        if ctx.gh.has_label("release"):
-            cmd_check_release(ctx)
 
 
 def handle_pull_request(ctx):
     pr = ctx.gh.pull_request()
-    if ctx.gh.has_label("release") and ctx.gh.payload["action"] == "closed" and pr.merged:
-        cmd_release(ctx)
+    if ctx.gh.has_label("release"):
+        if ctx.gh.payload["action"] == "closed" and pr.merged:
+            cmd_release(ctx)
+        else:
+            cmd_check_release(ctx)
 
 
 def cmd_standby_release(ctx):

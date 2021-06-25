@@ -41,9 +41,6 @@ class GitHub:
             if self.is_pull_request():
                 self.event_name = "pull_request_comment"
                 self._checkout_pull_request_branch()
-        if self.event_name == "pull_request":
-            if self.payload.get("action") == "synchronize":
-                self.event_name = "pull_request_push"
 
     @property
     def owner(self) -> str:
