@@ -5,7 +5,6 @@ def handle_pull_request_comment(ctx):
     body = ctx.gh.comment_body().strip()
     if body.startswith("/standby-release"):
         cmd_standby_release(ctx)
-        cmd_check_release(ctx)
     elif body.startswith("/release"):
         cmd_release()
     else:
@@ -27,7 +26,6 @@ def cmd_standby_release(ctx):
 def cmd_check_release(ctx):
     """Release test"""
     pr = ctx.gh.pull_request()
-    target_sha = pr.merge_commit_sha
     tag = _get_release_tag(ctx)
     # upload to test pypi
     files = _release_to_pypi(ctx, tag)
