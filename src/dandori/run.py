@@ -2,6 +2,9 @@ import contextlib
 import importlib.machinery
 import pathlib
 import sys
+import typing as T
+
+from box import Box
 
 import dandori.response
 
@@ -29,29 +32,34 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path, options: Box):
         """Running some user defined function"""
         self._cfg_path = path
+        self._options = options
 
-    def execute(self):
+    def execute(self, run_command=None):
         """Setup config, execute function"""
         ctx = self._create_context()
         with self._setup():
-            self._execute(ctx)
+            self._execute(ctx, run_command)
 
-    def _execute(self, ctx: Context):
+    def _execute(self, ctx: Context, run_command: T.Optional[str]):
         for handler in ctx.cfg.handlers:
-            func = handler.get_function(ctx.gh.event_name)
-            if not func:
-                L.verbose1("%s: function handler for %s not found", handler.name, ctx.gh.event_name)
-                continue
             condition = handler.get_condition(ctx.gh.event_name)
             if not condition.check(ctx):
                 L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
                 continue
-            L.verbose1("%s: execute handler for %s", handler.name, ctx.gh.event_name)
+            if run_command:
+                func_name = f"cmd_{run_command}"
+            else:
+                func_name = f"handle_{ctx.gh.event_name}"
+            func = handler.get_function(func_name)
+            if not func:
+                L.verbose1("%s: function %s not found", handler.name, func_name)
+                continue
+            L.verbose1("%s: execute %s", handler.name, func_name)
             try:
-                with ctx.gh.check(f"dandori_{ctx.gh.event_name}"):
+                with ctx.gh.check(f"dandori::{func_name}"):
                     r = func(ctx)
             except Exception as e:
                 print(f"::error::{e}")
@@ -67,6 +75,8 @@ class Runner:
         # load Github Actions Events
         gh = GitHub()
         config = ConfigLoader().load(self._cfg_path)
+        config.options.merge_update(self._options)
+        L.verbose3("Options: %s", config.options)
         ops = Operation()
         resp = dandori.response.Responses()
         return Context(gh=gh, cfg=config, ops=ops, resp=resp)

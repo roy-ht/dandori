@@ -2,7 +2,8 @@ import os
 import pathlib
 import subprocess as sp
 
-import tomlkit
+import ruamel.yaml
+from box import Box
 
 import dandori.env
 import dandori.exception
@@ -44,13 +45,24 @@ class Operation:
 
     def parse_toml(self, path: str, encoding="utf-8"):
         """Parse toml file"""
-        with open(path, encoding=encoding) as f:
-            return tomlkit.parse(f.read())
+        return Box.from_toml(filename=path, encoding=encoding)
+
+    def parse_yaml(self, path: str, encoding="utf-8"):
+        """Parse toml file"""
+        return Box.from_yaml(filename=path, encoding=encoding)
 
     def dump_toml(self, obj, path: str, encoding="utf-8"):
         """Dump toml file"""
-        with open(path, "w", encoding=encoding) as f:
-            return f.write(tomlkit.dumps(obj))
+        Box(obj).to_toml(filename=path, encoding=encoding)
+
+    def dump_yaml(self, obj, path: str, encoding="utf-8"):
+        """Dump toml file"""
+        if isinstance(obj, (dict, Box)):
+            Box(obj).to_yaml(filename=path, encoding=encoding)
+        else:
+            yaml = ruamel.yaml.YAML()
+            with open(path, "w", encoding=encoding) as fo:
+                yaml.dump(obj, fo)
 
     def _prepare_venv(self, python_path):
         venv_dir = pathlib.Path(dandori.env.tempdir().name) / "venv"
