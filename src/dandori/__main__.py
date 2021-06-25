@@ -1,7 +1,7 @@
 import argparse
-import json
 import pathlib
 
+import ruamel.yaml
 from box import Box
 
 import dandori.log
@@ -9,14 +9,21 @@ import dandori.run
 
 
 def _parse_options(lines):
-    options = Box(box_docs=True)
+    options = Box()
+    yaml = ruamel.yaml.YAML(typ="safe")
     if lines:
         for line in lines:
             kvs = line.split("=", 1)
             if len(kvs) == 1:
-                options[kvs[0]] = True
+                kdots, value = kvs[0], "true"
             else:
-                options[kvs[0]] = json.loads(kvs[1])
+                kdots, value = kvs[0], yaml.load(kvs[1])
+            keys = kdots.split(".")
+            tgt = options
+            for k in keys[:-1]:
+                tgt.setdefault(k, {})
+                tgt = tgt[k]
+            tgt[keys[-1]] = value
     return options
 
 
