@@ -59,7 +59,7 @@ class Runner:
                 continue
             L.verbose1("%s: execute %s", handler.name, func_name)
             try:
-                with ctx.gh.check(f"dandori::{ctx.gh.event_name}"):
+                with ctx.gh.check(f"dandori::{func_name}"):
                     r = func(ctx)
             except Exception as e:
                 print(f"::error::{e}")

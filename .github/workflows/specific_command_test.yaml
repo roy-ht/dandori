@@ -1,7 +1,7 @@
 name: dandori_action
 on:
   pull_request:
-    types: [locked]
+    types: [unlocked]
 
 jobs:
   run:
@@ -12,6 +12,6 @@ jobs:
         with:
           python-version: '3.9'
       - run: pip install .
-      - run: dandori -vvvv -r hello -o "hello.name=dandori"
+      - run: dandori -vvvv -r hello -o "hello.name=\"Hello again!!\""
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
