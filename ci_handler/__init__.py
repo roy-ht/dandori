@@ -5,6 +5,7 @@ def handle_pull_request_comment(ctx):
     body = ctx.gh.comment_body().strip()
     if body.startswith("/standby-release"):
         cmd_standby_release(ctx)
+        cmd_check_release(ctx)
     elif body.startswith("/release"):
         cmd_release()
     else:
