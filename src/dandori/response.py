@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class Response(dict):
     """Manage running i/o"""
 
