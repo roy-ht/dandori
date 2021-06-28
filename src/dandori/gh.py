@@ -182,3 +182,23 @@ class GitHub:
             L.info("Checkout to merge commit of PR #%d: %s", self.issue_number, ref)
             ops.run(["git", "fetch", "origin", f"+{ref}:refs/remotes/origin/merge_commit"])
             ops.run(["git", "checkout", "--force", "-B", "merge_commit", "refs/remotes/origin/merge_commit"])
+
+
+class GitHubMock:
+    def __init__(self, chain=None):
+        """GitHub API Mock"""
+        self._chain = [] if chain is None else chain
+
+    def __call__(self, *args, **kwargs):
+        """call outputs what api called"""
+        call_chain = ".".join(self._chain)
+        L.info("[Call GitHub API] %s(%s, %s)", call_chain, args, kwargs)
+
+    @contextlib.contextmanager
+    def check(self, *args, **kwargs):
+        """log check"""
+        L.info("[Call GitHub API] check(%s, %s)", args, kwargs)
+        yield
+
+    def __getattr__(self, name):
+        return GitHubMock(self._chain + [name])

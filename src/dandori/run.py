@@ -11,7 +11,7 @@ import dandori.response
 from . import env, log
 from .config import ConfigLoader
 from .context import Context
-from .gh import GitHub
+from .gh import GitHub, GitHubMock
 from .ops import Operation
 
 L = log.get_logger(__name__)
@@ -32,25 +32,26 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path: pathlib.Path, options: Box):
+    def __init__(self, path: pathlib.Path, options: Box, local_mode=False):
         """Running some user defined function"""
         self._cfg_path = path
         self._options = options
+        self._local_mode = local_mode
 
-    def execute(self, run_command=None):
+    def execute(self, invoke_function=None):
         """Setup config, execute function"""
         ctx = self._create_context()
         with self._setup():
-            self._execute(ctx, run_command)
+            self._execute(ctx, invoke_function)
 
-    def _execute(self, ctx: Context, run_command: T.Optional[str]):
+    def _execute(self, ctx: Context, invoke_function: T.Optional[str]):
         for handler in ctx.cfg.handlers:
             condition = handler.get_condition(ctx.gh.event_name)
             if not condition.check(ctx):
                 L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
                 continue
-            if run_command:
-                func_name = f"cmd_{run_command}"
+            if invoke_function:
+                func_name = invoke_function
             else:
                 func_name = f"handle_{ctx.gh.event_name}"
             func = handler.get_function(func_name)
@@ -72,13 +73,16 @@ class Runner:
                 ctx.resp.append_dict(handler.name, {})
 
     def _create_context(self) -> Context:
-        # load Github Actions Events
-        gh = GitHub()
         config = ConfigLoader().load(self._cfg_path)
         config.options.merge_update(self._options)
         L.verbose3("Options: %s", config.options)
         ops = Operation()
         resp = dandori.response.Responses()
+        if self._local_mode:
+            gh = GitHubMock()
+            config.local = True
+        else:
+            gh = GitHub()  # type: ignore
         return Context(gh=gh, cfg=config, ops=ops, resp=resp)
 
     @contextlib.contextmanager

@@ -32,21 +32,24 @@ def main():
     args = _parse_args()
     cpath = args.config_file
     if cpath is None:
-        cpath = pathlib.Path("dandori.toml")
+        cpath = pathlib.Path("dandori.yaml")
     else:
         cpath = pathlib.Path(cpath)
     if not cpath.exists():
         cpath = pathlib.Path("pyproject.toml")
     options = _parse_options(args.options)
-    runner = dandori.run.Runner(cpath, options=options)
-    runner.execute(args.run_command)
+    runner = dandori.run.Runner(cpath, options=options, local_mode=args.local)
+    runner.execute(args.invoke)
 
 
 def _parse_args():
     psr = argparse.ArgumentParser()
     psr.add_argument("-v", "--verbose", default=0, action="count")
-    psr.add_argument("-f", "--config-file", help="toml configuration file path")
-    psr.add_argument("-r", "--run-command", help="Invoke specific command instead of handler")
+    psr.add_argument("-f", "--config-file", help="configuration file path (toml or yaml)")
+    psr.add_argument("-i", "--invoke", help="Invoke specific function manually")
+    psr.add_argument(
+        "-l", "--local", action="store_true", default=False, help="You can try actions on your local machine"
+    )
     psr.add_argument("-o", "--options", action="append", help="optional arguments")
     args = psr.parse_args()
 

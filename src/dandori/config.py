@@ -10,7 +10,7 @@ import typing as T
 from box import Box
 
 import dandori.log
-from dandori import env
+from dandori import env, exception
 
 if T.TYPE_CHECKING:
     from dandori.context import Context
@@ -104,6 +104,7 @@ class Handler:
 @dataclasses.dataclass
 class Config:
     handlers: list[Handler]
+    local: bool = False  # Run in local mode or not
     cwd: pathlib.Path = pathlib.Path(".").absolute()  # current directory at instance generation point
     options: Box = dataclasses.field(default_factory=Box)
 
@@ -112,13 +113,18 @@ class ConfigLoader:
     """Load local/remote configurations and script/package"""
 
     def load(self, path: pathlib.Path):
-        """load toml configuration file"""
-        conf = Box.from_toml(filename=str(path))
-        if "dandori" in conf.get("tool", {}):  # pyproject.toml support
-            conf = conf["tool"]
-        if "dandori" not in conf:
-            raise ValueError(f"{path}: dandori section not found in your config file")
-        conf = conf["dandori"]
+        """load configuration file"""
+        if path.suffix in (".yaml", ".yml"):
+            conf = Box.from_yaml(filename=str(path))
+        elif path.suffix == ".toml":
+            conf = Box.from_toml(filename=str(path))
+            if "dandori" in conf.get("tool", {}):  # pyproject.toml support
+                conf = conf["tool"]
+            if "dandori" not in conf:
+                raise ValueError(f"{path}: dandori section not found in your config file")
+            conf = conf["dandori"]
+        else:
+            raise exception.DandoriError(f"Unsupported configuration format: {path}")
         L.debug("Config: %s", pprint.pformat(conf))
         return Config(handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf))
 
