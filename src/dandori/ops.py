@@ -21,14 +21,14 @@ class Operation:
         """Cancel action with some message"""
         raise dandori.exception.Cancel(message)
 
-    def run(self, *args, **kwargs):
+    def run(self, args, **kwargs):
         """subprocess wrapper"""
         if "encoding" not in kwargs:
             kwargs["encoding"] = "utf-8"
         kwargs.setdefault("check", True)
         try:
-            L.verbose2("Execute: %s, %s", *args, **kwargs)
-            r = sp.run(*args, **kwargs)  # pylint: disable=subprocess-run-check
+            L.verbose2("Execute: %s", args)
+            r = sp.run(args, **kwargs)  # pylint: disable=subprocess-run-check
             L.verbose3("\n---- stdout ----\n%s\n---- stderr ----\n%s", r.stdout or "", r.stderr or "")
             return r
         except sp.CalledProcessError as e:
