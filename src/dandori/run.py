@@ -10,7 +10,7 @@ from box import Box
 
 import dandori.response
 
-from . import env, log
+from . import env, exception, log
 from .config import ConfigLoader
 from .context import Context
 from .gh import GitHub, GitHubMock
@@ -64,6 +64,8 @@ class Runner:
             try:
                 with ctx.gh.check(f"dandori::{func_name}"):
                     r = func(ctx)
+            except exception.Cancel:
+                ctx.gh.cancel()
             except Exception as e:
                 print(f"::error::{e}")
                 raise

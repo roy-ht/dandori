@@ -21,13 +21,16 @@ class Operation:
         """Cancel action with some message"""
         raise dandori.exception.Cancel(message)
 
-    def run(self, *args, **kwargs):
+    def run(self, args, **kwargs):
         """subprocess wrapper"""
-        if "stdout" not in kwargs and "stderr" not in kwargs:
-            kwargs.setdefault("capture_output", True)
+        if "encoding" not in kwargs:
+            kwargs["encoding"] = "utf-8"
         kwargs.setdefault("check", True)
         try:
-            return sp.run(*args, **kwargs)  # pylint: disable=subprocess-run-check
+            L.verbose2("Execute: %s", args)
+            r = sp.run(args, **kwargs)  # pylint: disable=subprocess-run-check
+            L.verbose3("\n---- stdout ----\n%s\n---- stderr ----\n%s", r.stdout or "", r.stderr or "")
+            return r
         except sp.CalledProcessError as e:
             L.error(
                 "Finished with code=%d.\n---- stdout ----\n%s\n---- stderr ----\n%s",
@@ -37,9 +40,9 @@ class Operation:
             )
             raise
 
-    def run_venv(self, *args, python_path="python", **kwargs):
+    def run_venv(self, *args, python_path="python", name="venv", **kwargs):
         """Run command with virtualenv"""
-        env = self._prepare_venv(python_path)
+        env = self._prepare_venv(python_path, name)
         kwargs.setdefault("env", {}).update(env)
         self.run(*args, **kwargs)
 
@@ -64,8 +67,8 @@ class Operation:
             with open(path, "w", encoding=encoding) as fo:
                 yaml.dump(obj, fo)
 
-    def _prepare_venv(self, python_path):
-        venv_dir = pathlib.Path(dandori.env.tempdir().name) / "venv"
+    def _prepare_venv(self, python_path, name):
+        venv_dir = pathlib.Path(dandori.env.tempdir().name) / name
         if not venv_dir.exists():
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
             self.run_venv(["pip", "install", "-U", "pip"])

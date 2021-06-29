@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import time
 import typing as T
 import urllib.error
 
@@ -154,6 +155,11 @@ class GitHub:
     def create_release(self, *args, **kwargs):
         """Shorthand for api.create_release"""
         self.api.create_release(*args, **kwargs)
+
+    def cancel(self):
+        """Cancel this workflow"""
+        self.api.actions.cancel_workflow_run(self.run_id)
+        time.sleep(10)
 
     @contextlib.contextmanager
     def check(self, name: str, sha=None):
