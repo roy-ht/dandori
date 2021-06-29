@@ -51,6 +51,10 @@ def cmd_hello(ctx):
     ctx.gh.create_comment(f"Hello^^ {ctx.cfg.options.hello.name}")
 
 
+def cmd_run_venv(ctx):
+    ctx.ops.run_venv(["poetry", "install"], name="dandori", env={"POETRY_VIRTUALENVS_CREATE": "False"})
+
+
 def _release_to_pypi(ctx, tag, test=True):
     ctx.ops.run_venv(["pip", "install", "twine", "poetry"])
     if test:
