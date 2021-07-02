@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dandori"
-version = "0.1.6"
+version = "0.1.7"
 description = "GitHub Actions with Python"
 authors = ["Hiroyuki Tanaka <aflc0x@gmail.com>"]
 license = "MIT"

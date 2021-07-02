@@ -56,17 +56,17 @@ def cmd_run_venv(ctx):
 
 
 def _release_to_pypi(ctx, tag, test=True):
-    ctx.ops.run_venv(["pip", "install", "twine", "poetry"])
+    ctx.ops.run_venv(["pip", "install", "twine", "poetry"], name="poetry_env")
     if test:
         tag = f"{tag}.dev{ctx.gh.run_id}"
         _set_version(ctx, tag)
-    ctx.ops.run_venv(["poetry", "build"])
+    ctx.ops.run_venv(["poetry", "build"], name="poetry_env")
     files = list(ctx.cfg.cwd.joinpath("dist").iterdir())
     twine_args = ["twine", "upload", "--non-interactive", "--config-file", str(ctx.cfg.cwd.joinpath(".pypirc"))]
     if test:
         twine_args += ["-r", "testpypi"]
     twine_args += [str(x) for x in files]
-    ctx.ops.run_venv(twine_args)
+    ctx.ops.run_venv(twine_args, name="poetry_env")
     return files
 
 
