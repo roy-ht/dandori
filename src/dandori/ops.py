@@ -71,7 +71,7 @@ class Operation:
         venv_dir = pathlib.Path(dandori.env.tempdir().name) / name
         if not venv_dir.exists():
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
-            self.run_venv(["pip", "install", "-U", "pip"])
+            self.run_venv(["pip", "install", "-U", "pip"], python_path=python_path, name=name)
         if not venv_dir.exists():
             raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
         return {
