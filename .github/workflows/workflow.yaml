@@ -5,6 +5,9 @@ on:
   issue_comment:
     types: [created]
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   pr-comment:
     if: github.event.issue.pull_request
@@ -35,8 +38,6 @@ jobs:
       - run: pip install .
       - run: echo '${{ secrets.PYPIRC }}' > .pypirc
       - run: dandori -vvvv
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   other:
     if: "!github.event.issue.pull_request"
     runs-on: ubuntu-latest
@@ -48,5 +49,3 @@ jobs:
       - run: pip install .
       - run: echo '${{ secrets.PYPIRC }}' > .pypirc
       - run: dandori -vvvv
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
