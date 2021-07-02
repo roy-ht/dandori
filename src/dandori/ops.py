@@ -26,10 +26,17 @@ class Operation:
         if "encoding" not in kwargs:
             kwargs["encoding"] = "utf-8"
         kwargs.setdefault("check", True)
+        # Always inherit env vars
+        env = os.environ.copy()
+        env.update(kwargs.get("env", {}))
+        kwargs["env"] = env
         try:
             L.verbose2("Execute: %s", args)
             r = sp.run(args, **kwargs)  # pylint: disable=subprocess-run-check
-            L.verbose3("\n---- stdout ----\n%s\n---- stderr ----\n%s", r.stdout or "", r.stderr or "")
+            if r.stdout:
+                L.verbose3("---- stdout ----\n%s", r.stdout)
+            if r.stderr:
+                L.verbose3("---- stderr ----\n%s", r.stderr)
             return r
         except sp.CalledProcessError as e:
             L.error(
@@ -71,7 +78,6 @@ class Operation:
         venv_dir = pathlib.Path(dandori.env.tempdir().name) / name
         if not venv_dir.exists():
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
-            self.run_venv(["pip", "install", "-U", "pip"], python_path=python_path, name=name)
         if not venv_dir.exists():
             raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
         return {
