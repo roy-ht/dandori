@@ -8,6 +8,7 @@ from box import Box
 import dandori.env
 import dandori.exception
 import dandori.log
+import dandori.process
 
 L = dandori.log.get_logger(__name__)
 
@@ -31,20 +32,10 @@ class Operation:
         env.update(kwargs.get("env", {}))
         kwargs["env"] = env
         try:
-            L.verbose2("Execute: %s", args)
-            r = sp.run(args, **kwargs)  # pylint: disable=subprocess-run-check
-            if r.stdout:
-                L.verbose3("---- stdout ----\n%s", r.stdout)
-            if r.stderr:
-                L.verbose3("---- stderr ----\n%s", r.stderr)
-            return r
+            L.verbose3("Execute: %s", args)
+            return dandori.process.run(args, **kwargs)
         except sp.CalledProcessError as e:
-            L.error(
-                "Finished with code=%d.\n---- stdout ----\n%s\n---- stderr ----\n%s",
-                e.returncode,
-                e.output or "",
-                e.stderr or "",
-            )
+            L.error("Finished with code=%d: %s", e.returncode, args)
             raise
 
     def run_venv(self, *args, python_path="python", name="venv", **kwargs):
