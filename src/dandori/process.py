@@ -62,10 +62,10 @@ def run(args: T.Union[str, list[str]], echo=True, **kwargs) -> sp.CompletedProce
 
     echo(default: True) <- print to stdout or not
     """
-    check = kwargs.get("check", False)
+    check = kwargs.pop("check", False)
 
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(_stream_subprocess(args, echo=echo, **kwargs))
-    if kwargs.get(check, False) and result.returncode != 0:
+    if check and result.returncode != 0:
         raise sp.CalledProcessError(result.returncode, args, output=result.stdout, stderr=result.stderr)
     return result
