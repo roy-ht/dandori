@@ -27,6 +27,14 @@ async def _read_stream(stream, outlist, echo, encoding):
             break
 
 
+async def _feed_stdin(stdin, ipt):
+    stdin.write(ipt)
+    try:
+        await stdin.drain()
+    finally:
+        stdin.close()
+
+
 async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
     kwargs.pop("stdout", None)
     kwargs.pop("stderr", None)
@@ -34,26 +42,38 @@ async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
     kwargs["stdout"] = asyncio.subprocess.PIPE
     kwargs["stderr"] = asyncio.subprocess.STDOUT
     encoding = kwargs.pop("encoding", "utf-8")
+    input_str = kwargs.pop("input", None)
+    if input_str:
+        kwargs["stdin"] = asyncio.subprocess.PIPE
     if kwargs.get("shell", False):
         proc = await asyncio.create_subprocess_shell(args, **kwargs)
     else:
         proc = await asyncio.create_subprocess_exec(*args, **kwargs)
 
-    out: list[str] = []
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(_read_stream(proc.stdout, out, echo, encoding))
-    await asyncio.wait([task])
+    try:
+        loop = asyncio.get_event_loop()
+        tasks = []
+        if input_str:
+            if isinstance(input_str, str):
+                input_str = input_str.encode("utf-8")
+            tasks.append(loop.create_task(_feed_stdin(proc.stdin, input_str)))
+        out: list[str] = []
+        tasks.append(loop.create_task(_read_stream(proc.stdout, out, echo, encoding)))
+        await asyncio.wait(tasks)
 
-    output = ""
-    if out:
-        output = "".join(out)
+        output = ""
+        if out:
+            output = "".join(out)
 
-    return sp.CompletedProcess(
-        args=args,
-        returncode=await proc.wait(),
-        stdout=output,
-        stderr="",
-    )
+        return sp.CompletedProcess(
+            args=args,
+            returncode=await proc.wait(),
+            stdout=output,
+            stderr="",
+        )
+    except BaseException:
+        proc.kill()
+        raise
 
 
 def run(args: T.Union[str, list[str]], echo=True, **kwargs) -> sp.CompletedProcess:
