@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dandori"
-version = "0.1.9"
+version = "0.1.11"
 description = "GitHub Actions with Python"
 authors = ["Hiroyuki Tanaka <aflc0x@gmail.com>"]
 license = "MIT"
@@ -17,7 +17,7 @@ python = "^3.8"
 ghapi = "^0.1.17"
 python-box = "^5.3.0"
 toml = "^0.10.2"
-"ruamel.yaml" = "^0.17.11"
+"ruamel.yaml" = "^0.17.10"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.23.1"
