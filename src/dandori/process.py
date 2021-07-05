@@ -22,7 +22,7 @@ async def _read_stream(stream, outlist, echo, encoding):
                 line = line.decode(encoding)
             outlist.append(line)
             if echo:
-                print(line)
+                print(line, end="")
         else:
             break
 
