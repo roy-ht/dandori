@@ -15,10 +15,12 @@ import typing as T
 STREAM_LIMIT = 2 ** 23  # 8MB instead of default 64kb, override it if you need
 
 
-async def _read_stream(stream, outlist, echo):
+async def _read_stream(stream, outlist, echo, encoding):
     while True:
         line = await stream.readline()
         if line:
+            if encoding is not None:
+                line = line.decode(encoding)
             outlist.append(line)
             if echo:
                 print(line)
@@ -32,6 +34,7 @@ async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
     kwargs.setdefault("limit", STREAM_LIMIT)
     kwargs["stdout"] = asyncio.subprocess.PIPE
     kwargs["stderr"] = asyncio.subprocess.STDOUT
+    encoding = kwargs.pop("encoding", "utf-8")
     if kwargs.get("shell", False):
         proc = await asyncio.create_subprocess_shell(args, **kwargs)
     else:
@@ -39,7 +42,7 @@ async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
 
     out: list[str] = []
     loop = asyncio.get_event_loop()
-    task = loop.create_task(_read_stream(proc.stdout, out, echo))
+    task = loop.create_task(_read_stream(proc.stdout, out, echo, encoding))
     await asyncio.wait([task])
 
     output = ""
