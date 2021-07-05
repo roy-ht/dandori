@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import pathlib
+import sys
 
 import ruamel.yaml
 from box import Box
@@ -32,6 +33,7 @@ def _parse_options(lines):
 
 def main():
     """entrypoint of dandori command"""
+    sys.stdout.reconfigure(line_buffering=True)
     args = _parse_args()
     if args.github_token:
         os.environ["GITHUB_TOKEN"] = args.github_token
