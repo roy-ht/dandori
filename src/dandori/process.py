@@ -8,7 +8,6 @@ http://opensource.org/licenses/mit-license.php
 from __future__ import annotations
 
 import asyncio
-import os
 import subprocess as sp
 import typing as T
 
@@ -38,7 +37,7 @@ async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
     if kwargs.get("shell", False):
         proc = await asyncio.create_subprocess_shell(args, **kwargs)
     else:
-        proc = await asyncio.create_subprocess_exec(args, **kwargs)
+        proc = await asyncio.create_subprocess_exec(*args, **kwargs)
 
     out: list[str] = []
     loop = asyncio.get_event_loop()
@@ -47,7 +46,7 @@ async def _stream_subprocess(args, echo=True, **kwargs) -> sp.CompletedProcess:
 
     output = ""
     if out:
-        output = os.linesep.join(out) + os.linesep
+        output = "".join(out)
 
     return sp.CompletedProcess(
         args=args,
