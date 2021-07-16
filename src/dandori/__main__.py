@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import pathlib
 import sys
 
 import ruamel.yaml
@@ -40,12 +39,6 @@ def main():
     elif "DANDORI_GITHUB_TOKEN" in os.environ:
         os.environ["GITHUB_TOKEN"] = os.environ["DANDORI_GITHUB_TOKEN"]
     cpath = args.config_file
-    if cpath is None:
-        cpath = pathlib.Path("dandori.yaml")
-    else:
-        cpath = pathlib.Path(cpath)
-    if not cpath.exists():
-        cpath = pathlib.Path("pyproject.toml")
     options = _parse_options(args.options)
     runner = dandori.run.Runner(cpath, options=options, local_mode=args.local)
     runner.execute(args.invoke)
