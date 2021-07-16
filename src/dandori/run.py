@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import importlib.machinery
-import pathlib
 import sys
 import typing as T
 
@@ -34,7 +33,7 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path: pathlib.Path, options: Box, local_mode=False):
+    def __init__(self, path, options: Box, local_mode=False):
         """Running some user defined function"""
         self._cfg_path = path
         self._options = options
@@ -77,16 +76,17 @@ class Runner:
                 ctx.resp.append_dict(handler.name, {})
 
     def _create_context(self) -> Context:
+        if self._local_mode:
+            gh = GitHubMock()
+        else:
+            gh = GitHub()  # type: ignore
         config = ConfigLoader().load(self._cfg_path)
+        if self._local_mode:
+            config.local = True
         config.options.merge_update(self._options)
         L.verbose3("Options: %s", config.options)
         ops = Operation()
         resp = dandori.response.Responses()
-        if self._local_mode:
-            gh = GitHubMock()
-            config.local = True
-        else:
-            gh = GitHub()  # type: ignore
         return Context(gh=gh, cfg=config, ops=ops, resp=resp)
 
     @contextlib.contextmanager

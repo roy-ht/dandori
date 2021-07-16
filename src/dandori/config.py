@@ -112,8 +112,21 @@ class Config:
 class ConfigLoader:
     """Load local/remote configurations and script/package"""
 
-    def load(self, path: pathlib.Path):
+    def load(self, config_file):
         """load configuration file"""
+        if config_file:
+            path = pathlib.Path(config_file)  # ensure Path
+            if not path.exists():
+                raise exception.DandoriError(f"File not found: {path}")
+        else:
+            path = pathlib.Path("dandori.yaml")
+            if not path.exists():
+                path = pathlib.Path("pyproject.toml")
+                if not path.exists():
+                    raise exception.DandoriError(
+                        "config file not found. You need to create dandori.yaml or write configs in pyproject.toml"
+                    )
+
         if path.suffix in (".yaml", ".yml"):
             conf = Box.from_yaml(filename=str(path))
         elif path.suffix == ".toml":
