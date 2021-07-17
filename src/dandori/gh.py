@@ -156,6 +156,21 @@ class GitHub:
         self.api.actions.cancel_workflow_run(self.run_id)
         time.sleep(10)
 
+    def list_checks(self, sha=None, name=None, status=None):
+        """Get check runs and return"""
+        if self.is_pull_request():
+            pr = self.pull_request()
+            sha = pr.head.sha
+        else:
+            sha = self.sha
+        kwargs = {"ref": sha}
+        if name is not None:
+            kwargs["check_name"] = name
+        if status is not None:
+            kwargs["status"] = status
+        checks = self.api.checks.list_for_ref(per_page=100, **kwargs)
+        return [Box(x) for x in checks.check_runs]
+
     @contextlib.contextmanager
     def check(self, name: str, sha=None):
         """Some proc with GitHub Checks API"""
