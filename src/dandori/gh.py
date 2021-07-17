@@ -70,10 +70,7 @@ class GitHub:
             if number is None:
                 if self.is_pull_request():
                     if self._pull_request is None:
-                        if "pull_request" in self.payload:
-                            self._pull_request = self.payload["pull_request"]
-                        else:
-                            self._pull_request = Box(self.api.pulls.get(self.issue_number))
+                        self._pull_request = Box(self.api.pulls.get(self.issue_number))
                     return self._pull_request
                 else:
                     return self._pull_request
