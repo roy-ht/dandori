@@ -7,7 +7,7 @@ def handle_pull_request_comment(ctx):
         cmd_standby_release(ctx)
         cmd_check_release(ctx)
     elif body.startswith("/release"):
-        cmd_release()
+        cmd_release(ctx)
 
 
 def handle_pull_request(ctx):
