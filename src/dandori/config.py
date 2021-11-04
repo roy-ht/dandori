@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import dataclasses
 import importlib
+import os
 import pathlib
 import pprint
+import re
 import shutil
 import typing as T
 
 from box import Box
 
 import dandori.log
-from dandori import env, exception
+from dandori import env, exception, ops
 
 if T.TYPE_CHECKING:
     from dandori.context import Context
@@ -35,10 +37,9 @@ class Condition:
 
 
 class HandlerLoader:
-    def __init__(self, name: str, path: pathlib.Path):
+    def __init__(self, name: str):
         """Handler loader for local path"""
         self._module_name = name
-        self._path = path
 
     @property
     def module_name(self):
@@ -51,17 +52,108 @@ class HandlerLoader:
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
+        raise NotImplementedError()
+
+
+class LocalHandlerLoader(HandlerLoader):
+    def __init__(self, name: str, path: pathlib.Path):
+        """Handler loader for local path"""
+        super().__init__(name)
+        self._path = path
+
+    def deploy_package(self):
+        """Retrieve package files and place it to temporal package directory"""
         rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
         path = pathlib.Path(self._path)
         if not path.exists():
             raise ValueError(f"{path} does not exist")
         if path.is_file():
-            shutil.copy(path, rootdir.joinpath(self._module_name + ".py"))
+            shutil.copy(path, rootdir.joinpath(self.module_name + ".py"))
+        else:
+            pkgdir = rootdir.joinpath(self.module_name)
+            if pkgdir.exists():
+                shutil.rmtree(pkgdir)
+            shutil.copytree(path, pkgdir)
+
+
+class GitHandlerLoader(HandlerLoader):
+    def __init__(
+        self,
+        name: str,
+        url: str,
+        revision: T.Optional[str] = None,
+        path: T.Optional[str] = None,
+        key_file: T.Optional[str] = None,
+        username: str = "git",
+        password_env: T.Optional[str] = None,
+    ):
+        """Handler loader for git url"""
+        super().__init__(name)
+        self._url = url
+        self._revision = revision
+        self._path = path or ""
+        self._key_file = key_file
+        self._username = username
+        self._password_env = password_env
+
+    def deploy_package(self):
+        """Retrieve package files and place it to temporal package directory"""
+        cloned_path = self._clone()
+        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        if not cloned_path.exists():
+            raise ValueError(f"{cloned_path} does not exist")
+        if cloned_path.is_file():
+            shutil.copy(cloned_path, rootdir.joinpath(self._module_name + ".py"))
         else:
             pkgdir = rootdir.joinpath(self._module_name)
             if pkgdir.exists():
                 shutil.rmtree(pkgdir)
-            shutil.copytree(path, pkgdir)
+            shutil.copytree(cloned_path, pkgdir)
+
+    def _clone(self):
+        """Clone this repo into dst"""
+        envvar = {}
+        if self._key_file:
+            if self._url.startswith("http"):
+                raise ValueError("If you use ssh key, url must be a ssh style.")
+            L.verbose3("Using key file: %s", self._key_file)
+            envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key_file} -F /dev/null"
+            url = self._url
+        elif self._password_env:
+            if not os.environ.get(self._password_env):
+                raise ValueError(f"Environment variable {self._password_env} not found.")
+            if not self._url.startswith("http"):
+                raise ValueError("If you use password_env, url must be a https style")
+            L.verbose3("Git auth with token")
+            helper_path = pathlib.Path(env.tempdir().name).joinpath("askpass_helper")
+            with helper_path.open("w", encoding="utf-8") as f:
+                f.write(f"""#!/bin/sh\necho password=${self._password_env}""")
+            envvar["GIT_ASKPASS"] = str(helper_path)
+            url_parts = self._url.split("://", 1)
+            url = f"{url_parts[0]}://{self._username}@{url_parts[1]}"
+        op = ops.Operation()
+        dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
+        L.verbose2("git clone: url=%s, revision=%s, path=%s", url, self._revision, self._path)
+        dstdir.mkdir(parents=True, exist_ok=True)
+        cwd = str(dstdir)
+        op.run(["git", "init"], cwd=cwd, env=envvar)
+        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd, env=envvar)
+        rev = self._revision
+        if not rev:
+            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar)
+            mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
+            if mo:
+                rev = mo[1].strip()
+            else:
+                rev = "main"
+            L.verbose2("Revision automatically set: %s", rev)
+        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, env=envvar)
+        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, env=envvar)
+        shutil.rmtree(dstdir.joinpath(".git"))
+        if self._path:
+            return dstdir.joinpath(self._path)
+        else:
+            return dstdir
 
 
 class Handler:
@@ -142,6 +234,15 @@ class ConfigLoader:
         return Config(handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf))
 
     def _parse_handlers(self, conf: dict, basedir: pathlib.Path):
+        """load handler config
+
+        spec of handlers:
+        - string: local directory
+        - {'name', 'path'}: local directory with package name
+        - {'name', 'git': {'revision', 'key_file', 'token_env'}}: git repo
+          - key_file: path to ssh key
+          - token_env: environment variable name of GITHUB_TOKEN
+        """
         rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
         rootdir.mkdir(exist_ok=True)
         rootdir.joinpath("__init__.py").touch()
@@ -150,14 +251,23 @@ class ConfigLoader:
             if isinstance(d, str):
                 name = f"package_{i}"
                 path = pathlib.Path(d)
+                if not path.is_absolute():
+                    path = basedir.joinpath(path)
+                loader = LocalHandlerLoader(name=name, path=path)
             elif isinstance(d, dict):
                 name = d.get("name", f"package_{i}")
-                path = pathlib.Path(d["path"])
+                if "git" in d:
+                    gd = d["git"]
+                    loader = GitHandlerLoader(name=name, **gd)
+                elif "path" in d:
+                    path = pathlib.Path(d["path"])
+                    if not path.is_absolute():
+                        path = basedir.joinpath(path)
+                    loader = LocalHandlerLoader(name=name, path=path)
+                else:
+                    raise ValueError("Need at least one key: [path, git]")
             else:
                 raise ValueError(f"handlers.{i} must be dict or str")
-            if not path.is_absolute():
-                path = basedir.joinpath(path)
-            loader = HandlerLoader(name=name, path=path)
             handlers.append(Handler(loader))
             L.verbose3("Add handlers: %s", name)
         return handlers
