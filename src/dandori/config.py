@@ -143,19 +143,19 @@ class GitHandlerLoader(HandlerLoader):
         L.verbose2("git clone: url=%s, revision=%s, path=%s", url, self._revision, self._path)
         dstdir.mkdir(parents=True, exist_ok=True)
         cwd = str(dstdir)
-        op.run(["git", "init"], cwd=cwd, env=envvar)
-        op.run(["git", "remote", "add", "origin", url], cwd=cwd, env=envvar)
+        op.run(["git", "init"], cwd=cwd, env=envvar, echo=False)
+        op.run(["git", "remote", "add", "origin", url], cwd=cwd, env=envvar, echo=False)
         rev = self._revision
         if not rev:
-            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar)
+            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar, echo=False)
             mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
             if mo:
                 rev = mo[1].strip()
             else:
                 rev = "main"
             L.verbose2("Revision automatically set: %s", rev)
-        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, env=envvar)
-        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, env=envvar)
+        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, env=envvar, echo=False)
+        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, env=envvar, echo=False)
         shutil.rmtree(dstdir.joinpath(".git"))
         if self._path:
             return dstdir.joinpath(self._path)
