@@ -101,6 +101,8 @@ class GitHandlerLoader(HandlerLoader):
         self._path = path or ""
         self._key_file = key_file
         self._token_env = token_env
+        if not self._token_env and "DANDORI_DEFAULT_PAT" in os.environ:
+            self._token_env = "DANDORI_DEFAULT_PAT"
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
@@ -119,6 +121,7 @@ class GitHandlerLoader(HandlerLoader):
     def _clone(self):
         """Clone this repo into dst"""
         envvar = {}
+
         if self._key_file:
             L.verbose3("Using key file: %s", self._key_file)
             envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key_file} -F /dev/null"
