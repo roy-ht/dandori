@@ -79,22 +79,28 @@ class LocalHandlerLoader(HandlerLoader):
 class GitHandlerLoader(HandlerLoader):
     def __init__(
         self,
+        *,
         name: str,
-        url: str,
+        org: str,
+        repo_name: str,
         revision: T.Optional[str] = None,
         path: T.Optional[str] = None,
         key_file: T.Optional[str] = None,
-        username: str = "git",
-        password_env: T.Optional[str] = None,
+        token_env: T.Optional[str] = None,
     ):
-        """Handler loader for git url"""
+        """Handler loader for git url
+
+        if key_file -> use ssh key and trying to access via ssh
+        elif token_env -> use github token and trying to access via https
+        else -> default ssh access
+        """
         super().__init__(name)
-        self._url = url
+        self._org = org
+        self._repo_name = repo_name
         self._revision = revision
         self._path = path or ""
         self._key_file = key_file
-        self._username = username
-        self._password_env = password_env
+        self._token_env = token_env
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
@@ -114,30 +120,28 @@ class GitHandlerLoader(HandlerLoader):
         """Clone this repo into dst"""
         envvar = {}
         if self._key_file:
-            if self._url.startswith("http"):
-                raise ValueError("If you use ssh key, url must be a ssh style.")
             L.verbose3("Using key file: %s", self._key_file)
             envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key_file} -F /dev/null"
-            url = self._url
-        elif self._password_env:
-            if not os.environ.get(self._password_env):
-                raise ValueError(f"Environment variable {self._password_env} not found.")
-            if not self._url.startswith("http"):
-                raise ValueError("If you use password_env, url must be a https style")
-            L.verbose3("Git auth with token")
+            url = f"git@github.com:{self._org}/{self._repo_name}"
+        elif self._token_env:
+            if not os.environ.get(self._token_env):
+                raise ValueError(f"Environment variable {self._token_env} not found.")
+            L.verbose3("Git auth with token %s", self._token_env)
             helper_path = pathlib.Path(env.tempdir().name).joinpath("askpass_helper")
             with helper_path.open("w", encoding="utf-8") as f:
-                f.write(f"""#!/bin/sh\necho password=${self._password_env}""")
+                f.write(f"""#!/bin/sh\necho password=${self._token_env}""")
             envvar["GIT_ASKPASS"] = str(helper_path)
-            url_parts = self._url.split("://", 1)
-            url = f"{url_parts[0]}://{self._username}@{url_parts[1]}"
+            helper_path.chmod(0o755)
+            url = f"https://git@github.com/{self._org}/{self._repo_name}"
+        else:
+            url = f"git@github.com:{self._org}/{self._repo_name}"
         op = ops.Operation()
         dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
         L.verbose2("git clone: url=%s, revision=%s, path=%s", url, self._revision, self._path)
         dstdir.mkdir(parents=True, exist_ok=True)
         cwd = str(dstdir)
         op.run(["git", "init"], cwd=cwd, env=envvar)
-        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd, env=envvar)
+        op.run(["git", "remote", "add", "origin", url], cwd=cwd, env=envvar)
         rev = self._revision
         if not rev:
             r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar)
@@ -239,7 +243,7 @@ class ConfigLoader:
         spec of handlers:
         - string: local directory
         - {'name', 'path'}: local directory with package name
-        - {'name', 'git': {'revision', 'key_file', 'token_env'}}: git repo
+        - {'name', 'git': <git config>}: git repo
           - key_file: path to ssh key
           - token_env: environment variable name of GITHUB_TOKEN
         """
