@@ -96,6 +96,11 @@ def get_level() -> int:
     return get_logger().level
 
 
+def get_levelname() -> str:
+    """get current log level (string repr)"""
+    return _LEVELS.get(get_logger().level, ("UNKNOWN", ""))[0]
+
+
 def set_level(level: T.Union[str, int]):
     """set log level"""
     lvl = level
