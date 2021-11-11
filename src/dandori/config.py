@@ -137,7 +137,7 @@ class GitHandlerLoader(HandlerLoader):
             if not os.environ.get(self._token_env):
                 raise ValueError(f"Environment variable {self._token_env} not found.")
             L.verbose3("Git auth with token %s", self._token_env)
-            self._setup_git_credential_config(dstdir, self._token_env)
+            envvar["PATH"] = self._setup_git_credential_config(dstdir, self._token_env)
             url = f"https://github.com/{self._org}/{self._repo_name}"
         else:
             url = f"git@github.com:{self._org}/{self._repo_name}"
@@ -161,21 +161,22 @@ class GitHandlerLoader(HandlerLoader):
             return dstdir
 
     def _setup_git_credential_config(self, dr, env_name):
-        path_helper = dr.joinpath(".git/git-credential-github-token")
+        path_helper = dr.joinpath(".git/bin/git-credential-github-token")
         cwd = str(dr)
-        if not path_helper.exists():
-            op = ops.Operation()
-            op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
-            with path_helper.open("w") as fo:
-                fo.write(
-                    f"""#!/bin/sh
+        op = ops.Operation()
+        op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
+        with path_helper.open("w") as fo:
+            fo.write(
+                f"""#!/bin/sh
 echo protocol=https
 echo host=github.com
 echo username=git
 echo password=${env_name}
 """
-                )
-            path_helper.chmod(0o755)
+            )
+        path_helper.chmod(0o755)
+        bindir = path_helper.dirname().resolve()
+        return f"{bindir}:{os.environ.get('PATH', '')}"
 
 
 class Handler:
