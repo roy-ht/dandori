@@ -163,7 +163,7 @@ class GitHandlerLoader(HandlerLoader):
     def _setup_git_credential_config(self, dr, env_name):
         bindir = dr.joinpath(".git/bin").resolve()
         bindir.mkdir(parents=True, exist_ok=True)
-        path_helper = bindir.joinpath("git-credential-github-token")
+        path_helper = bindir.joinpath("git-credential-github-token-local")
         cwd = str(dr)
         op = ops.Operation()
         op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
