@@ -101,8 +101,9 @@ class GitHandlerLoader(HandlerLoader):
         self._path = path or ""
         self._key_file = key_file
         self._token_env = token_env
-        if not self._token_env and "DANDORI_DEFAULT_PAT" in os.environ:
-            self._token_env = "DANDORI_DEFAULT_PAT"
+        if not self._token_env:
+            if "DANDORI_DEFAULT_PAT" in os.environ:
+                self._token_env = "DANDORI_DEFAULT_PAT"
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
@@ -122,6 +123,12 @@ class GitHandlerLoader(HandlerLoader):
         """Clone this repo into dst"""
         envvar = {}
 
+        op = ops.Operation()
+        dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
+        dstdir.mkdir(parents=True, exist_ok=True)
+        cwd = str(dstdir)
+        op.run(["git", "init"], cwd=cwd, echo=False)
+
         if self._key_file:
             L.verbose3("Using key file: %s", self._key_file)
             envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key_file} -F /dev/null"
@@ -130,20 +137,11 @@ class GitHandlerLoader(HandlerLoader):
             if not os.environ.get(self._token_env):
                 raise ValueError(f"Environment variable {self._token_env} not found.")
             L.verbose3("Git auth with token %s", self._token_env)
-            helper_path = pathlib.Path(env.tempdir().name).joinpath("askpass_helper")
-            with helper_path.open("w", encoding="utf-8") as f:
-                f.write(f"""#!/bin/sh\necho password=${self._token_env}""")
-            envvar["GIT_ASKPASS"] = str(helper_path)
-            helper_path.chmod(0o755)
-            url = f"https://git@github.com/{self._org}/{self._repo_name}"
+            envvar["PATH"] = self._setup_git_credential_config(dstdir, self._token_env)
+            url = f"https://github.com/{self._org}/{self._repo_name}"
         else:
             url = f"git@github.com:{self._org}/{self._repo_name}"
-        op = ops.Operation()
-        dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
         L.verbose2("git clone: url=%s, revision=%s, path=%s", url, self._revision, self._path)
-        dstdir.mkdir(parents=True, exist_ok=True)
-        cwd = str(dstdir)
-        op.run(["git", "init"], cwd=cwd, env=envvar, echo=False)
         op.run(["git", "remote", "add", "origin", url], cwd=cwd, env=envvar, echo=False)
         rev = self._revision
         if not rev:
@@ -161,6 +159,25 @@ class GitHandlerLoader(HandlerLoader):
             return dstdir.joinpath(self._path)
         else:
             return dstdir
+
+    def _setup_git_credential_config(self, dr, env_name):
+        bindir = dr.joinpath(".git/bin").resolve()
+        bindir.mkdir(parents=True, exist_ok=True)
+        path_helper = bindir.joinpath("git-credential-github-token-local")
+        cwd = str(dr)
+        op = ops.Operation()
+        op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
+        with path_helper.open("w") as fo:
+            fo.write(
+                f"""#!/bin/sh
+echo protocol=https
+echo host=github.com
+echo username=git
+echo password=${env_name}
+"""
+            )
+        path_helper.chmod(0o755)
+        return f"{bindir}:{os.environ.get('PATH', '')}"
 
 
 class Handler:
