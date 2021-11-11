@@ -161,7 +161,9 @@ class GitHandlerLoader(HandlerLoader):
             return dstdir
 
     def _setup_git_credential_config(self, dr, env_name):
-        path_helper = dr.joinpath(".git/bin/git-credential-github-token")
+        bindir = dr.joinpath(".git/bin").resolve()
+        bindir.mkdir(parents=True, exist_ok=True)
+        path_helper = bindir.joinpath("git-credential-github-token")
         cwd = str(dr)
         op = ops.Operation()
         op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
@@ -175,7 +177,6 @@ echo password=${env_name}
 """
             )
         path_helper.chmod(0o755)
-        bindir = path_helper.dirname().resolve()
         return f"{bindir}:{os.environ.get('PATH', '')}"
 
 
