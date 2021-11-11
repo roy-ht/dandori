@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 import ruamel.yaml
 from box import Box
 
+import dandori.env
 import dandori.log
 import dandori.run
 
@@ -34,13 +34,10 @@ def main():
     """entrypoint of dandori command"""
     sys.stdout.reconfigure(line_buffering=True)
     args = _parse_args()
-    if args.github_token:
-        os.environ["GITHUB_TOKEN"] = args.github_token
-    elif "DANDORI_GITHUB_TOKEN" in os.environ:
-        os.environ["GITHUB_TOKEN"] = os.environ["DANDORI_GITHUB_TOKEN"]
+    dandori.env.setup()
     cpath = args.config_file
     options = _parse_options(args.options)
-    runner = dandori.run.Runner(cpath, options=options, local_mode=args.local)
+    runner = dandori.run.Runner(cpath, options=options)
     runner.execute(args.invoke)
 
 
@@ -50,9 +47,6 @@ def _parse_args():
     psr.add_argument("-f", "--config-file", help="configuration file path (toml or yaml)")
     psr.add_argument("-i", "--invoke", help="Invoke specific function manually")
     psr.add_argument("--github-token", help="github token")
-    psr.add_argument(
-        "-l", "--local", action="store_true", default=False, help="You can try actions on your local machine"
-    )
     psr.add_argument("-o", "--options", action="append", help="optional arguments")
     args = psr.parse_args()
 

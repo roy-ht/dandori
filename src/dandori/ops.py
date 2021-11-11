@@ -1,5 +1,4 @@
 import os
-import pathlib
 import subprocess as sp
 
 import ruamel.yaml
@@ -22,7 +21,7 @@ class Operation:
         """Cancel action with some message"""
         raise dandori.exception.Cancel(message)
 
-    def run(self, args, **kwargs):
+    def run(self, args, secret=False, **kwargs):
         """subprocess wrapper"""
         if "encoding" not in kwargs:
             kwargs["encoding"] = "utf-8"
@@ -32,7 +31,8 @@ class Operation:
         env.update(kwargs.get("env", {}))
         kwargs["env"] = env
         try:
-            L.verbose3("Execute: %s", args)
+            if not secret:
+                L.verbose3("Execute: %s", args)
             return dandori.process.run(args, **kwargs)
         except sp.CalledProcessError as e:
             L.error("Finished with code=%d: %s", e.returncode, args)
@@ -66,7 +66,7 @@ class Operation:
                 yaml.dump(obj, fo)
 
     def _prepare_venv(self, python_path, name):
-        venv_dir = pathlib.Path(dandori.env.tempdir().name) / name
+        venv_dir = dandori.env.tempdir() / name
         if not venv_dir.exists():
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
         if not venv_dir.exists():

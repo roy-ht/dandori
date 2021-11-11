@@ -63,7 +63,7 @@ class LocalHandlerLoader(HandlerLoader):
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
-        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        rootdir = env.tempdir().joinpath("handlers")
         path = pathlib.Path(self._path)
         if not path.exists():
             raise ValueError(f"{path} does not exist")
@@ -81,25 +81,20 @@ class GitHandlerLoader(HandlerLoader):
         self,
         *,
         name: str,
-        org: str,
-        repo_name: str,
+        url: str,
         revision: T.Optional[str] = None,
         path: T.Optional[str] = None,
-        key_file: T.Optional[str] = None,
         token_env: T.Optional[str] = None,
     ):
         """Handler loader for git url
 
-        if key_file -> use ssh key and trying to access via ssh
         elif token_env -> use github token and trying to access via https
         else -> default ssh access
         """
         super().__init__(name)
-        self._org = org
-        self._repo_name = repo_name
+        self._url = url
         self._revision = revision
         self._path = path or ""
-        self._key_file = key_file
         self._token_env = token_env
         if not self._token_env:
             if "DANDORI_DEFAULT_PAT" in os.environ:
@@ -108,7 +103,7 @@ class GitHandlerLoader(HandlerLoader):
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
         cloned_path = self._clone()
-        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        rootdir = env.tempdir().joinpath("handlers")
         if not cloned_path.exists():
             raise ValueError(f"{cloned_path} does not exist")
         if cloned_path.is_file():
@@ -121,63 +116,51 @@ class GitHandlerLoader(HandlerLoader):
 
     def _clone(self):
         """Clone this repo into dst"""
-        envvar = {}
-
         op = ops.Operation()
-        dstdir = pathlib.Path(env.tempdir().name).joinpath("remote_git", self.module_name)
+        dstdir = env.tempdir().joinpath("remote_git", self.module_name)
         dstdir.mkdir(parents=True, exist_ok=True)
         cwd = str(dstdir)
         op.run(["git", "init"], cwd=cwd, echo=False)
+        if not env.is_local():
+            if self._token_env:
+                if not os.environ.get(self._token_env):
+                    raise ValueError(f"Environment variable {self._token_env} not found.")
+                L.verbose3("Git auth with token %s", self._token_env)
+                op.run(
+                    ["git", "config", "--local", 'url."https://github.com".insteadOf', "ssh://git@github.com"], cwd=cwd
+                )
+                op.run(
+                    ["git", "config", "--local", "--add", 'url."https://github.com".insteadOf', "git://git@github.com"],
+                    cwd=cwd,
+                )
+                op.run(
+                    ["git", "config", "--local", "--add", 'url."https://github.com/".insteadOf', "git@github.com:"],
+                    cwd=cwd,
+                )
+                op.run(["git", "config", "--global", "credential.helper", f"dandori git {self._token_env}"], cwd=cwd)
 
-        if self._key_file:
-            L.verbose3("Using key file: %s", self._key_file)
-            envvar["GIT_SSH_COMMAND"] = f"ssh -i {self._key_file} -F /dev/null"
-            url = f"git@github.com:{self._org}/{self._repo_name}"
-        elif self._token_env:
-            if not os.environ.get(self._token_env):
-                raise ValueError(f"Environment variable {self._token_env} not found.")
-            L.verbose3("Git auth with token %s", self._token_env)
-            envvar["PATH"] = self._setup_git_credential_config(dstdir, self._token_env)
-            url = f"https://github.com/{self._org}/{self._repo_name}"
-        else:
-            url = f"git@github.com:{self._org}/{self._repo_name}"
-        L.verbose2("git clone: url=%s, revision=%s, path=%s", url, self._revision, self._path)
-        op.run(["git", "remote", "add", "origin", url], cwd=cwd, env=envvar, echo=False)
+        L.verbose2("git clone: url=%s, revision=%s, path=%s", self._url, self._revision, self._path)
+        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd, echo=False)
         rev = self._revision
         if not rev:
-            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, env=envvar, echo=False)
+            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, echo=False)
             mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
             if mo:
                 rev = mo[1].strip()
             else:
                 rev = "main"
             L.verbose2("Revision automatically set: %s", rev)
-        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, env=envvar, echo=False)
-        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, env=envvar, echo=False)
+        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, echo=False)
+        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, echo=False)
+        op.run(
+            ["git", "config", "--global", "--unset", "credential.helper", f"dandori git {self._token_env}"],
+            cwd=cwd,
+        )
         shutil.rmtree(dstdir.joinpath(".git"))
         if self._path:
             return dstdir.joinpath(self._path)
         else:
             return dstdir
-
-    def _setup_git_credential_config(self, dr, env_name):
-        bindir = dr.joinpath(".git/bin").resolve()
-        bindir.mkdir(parents=True, exist_ok=True)
-        path_helper = bindir.joinpath("git-credential-github-token-local")
-        cwd = str(dr)
-        op = ops.Operation()
-        op.run(["git", "config", "credential.helper", "github-token-local"], cwd=cwd)
-        with path_helper.open("w") as fo:
-            fo.write(
-                f"""#!/bin/sh
-echo protocol=https
-echo host=github.com
-echo username=git
-echo password=${env_name}
-"""
-            )
-        path_helper.chmod(0o755)
-        return f"{bindir}:{os.environ.get('PATH', '')}"
 
 
 class Handler:
@@ -255,7 +238,9 @@ class ConfigLoader:
         else:
             raise exception.DandoriError(f"Unsupported configuration format: {path}")
         L.debug("Config: %s", pprint.pformat(conf))
-        return Config(handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf))
+        return Config(
+            local=env.is_local(), handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf)
+        )
 
     def _parse_handlers(self, conf: dict, basedir: pathlib.Path):
         """load handler config
@@ -267,7 +252,7 @@ class ConfigLoader:
           - key_file: path to ssh key
           - token_env: environment variable name of GITHUB_TOKEN
         """
-        rootdir = pathlib.Path(env.tempdir().name).joinpath("handlers")
+        rootdir = env.tempdir().joinpath("handlers")
         rootdir.mkdir(exist_ok=True)
         rootdir.joinpath("__init__.py").touch()
         handlers = []

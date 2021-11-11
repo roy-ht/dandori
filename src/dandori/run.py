@@ -24,7 +24,7 @@ class HandlerFinder(importlib.machinery.PathFinder):
         """dynamic loading of dandori.handlers"""
         L.debug("Dynamic module finder: %s, %s, %s", fullname, path, target)
         if fullname == "dandori.handlers":
-            path = [env.tempdir().name]
+            path = [str(env.tempdir())]
             spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
             return spec
         return None
@@ -33,11 +33,10 @@ class HandlerFinder(importlib.machinery.PathFinder):
 class Runner:
     """Running some with user configuration"""
 
-    def __init__(self, path, options: Box, local_mode=False):
+    def __init__(self, path, options: Box):
         """Running some user defined function"""
         self._cfg_path = path
         self._options = options
-        self._local_mode = local_mode
 
     def execute(self, invoke_function=None):
         """Setup config, execute function"""
@@ -76,13 +75,11 @@ class Runner:
                 ctx.resp.append_dict(handler.name, {})
 
     def _create_context(self) -> Context:
-        if self._local_mode:
+        config = ConfigLoader().load(self._cfg_path)
+        if config.local:
             gh = GitHubMock()
         else:
             gh = GitHub()  # type: ignore
-        config = ConfigLoader().load(self._cfg_path)
-        if self._local_mode:
-            config.local = True
         config.options.merge_update(self._options)
         L.verbose3("Options: %s", config.options)
         ops = Operation()
@@ -91,10 +88,8 @@ class Runner:
 
     @contextlib.contextmanager
     def _setup(self):
-        tempdir = env.tempdir()
         sys.meta_path.append(HandlerFinder)
         try:
             yield
         finally:
-            tempdir.cleanup()
-        sys.meta_path.remove(HandlerFinder)
+            sys.meta_path.remove(HandlerFinder)
