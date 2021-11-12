@@ -2,6 +2,7 @@ import os
 import pathlib
 import weakref
 
+import dandori.log
 from dandori import env, ops
 
 SETUP_GIT = None
@@ -32,6 +33,7 @@ class SetupGit:
                 os.environ["PATH"] = f"{bindir}:{os.environ['PATH']}"
             self._backup_global_git_config(robj)
             self._setup_git_cred_helper(bindir)
+
         return robj
 
     def _setup_git_cred_helper(self, bindir: pathlib.Path):
@@ -53,6 +55,8 @@ class SetupGit:
         op.run(
             ["git", "config", "--global", "--add", "credential.helper", "dandori-default"],
         )
+        if dandori.log.get_levelname() == "DEBUG":
+            op.run(["git", "config", "--global", "--list"])
 
     def _backup_global_git_config(self, robj):
         p = pathlib.Path("~/.gitconfig").expanduser()
