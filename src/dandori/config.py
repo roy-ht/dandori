@@ -104,7 +104,11 @@ class GitHandlerLoader(HandlerLoader):
         """Clone this repo into dst"""
         op = ops.Operation()
         root = env.cachedir().joinpath(self._org, self._repo, self._revision)
-        if not root.is_dir():
+        if root.is_dir():
+            L.verbose1("Use repository cache: %s", root)
+            if dandori.log.get_levelname() == "DEBUG":
+                ops.Operation().run(["ls", "-alh", str(root)])
+        else:
             root.mkdir(parents=True, exist_ok=True)
             cwd = str(root)
             L.verbose2("git clone: url=%s, revision=%s, path=%s", self.url, self._revision, self._path)
