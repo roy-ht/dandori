@@ -23,4 +23,4 @@ def tempdir() -> pathlib.Path:
 
 def cachedir() -> pathlib.Path:
     """globel cache dir"""
-    return pathlib.Path(os.environ.get("XDG_CACHE_DIR", "~/.cache")).joinpath("dandori4649").expanduser().resolve()
+    return pathlib.Path(os.environ.get("XDG_CACHE_DIR", "~/.cache")).joinpath("dandori").expanduser().resolve()
