@@ -33,6 +33,25 @@ class HandlerLoader:
             self.deploy_package()
         return importlib.import_module(f"dandori.handlers.{self._module_name}")
 
+    def copy_package(self, path):
+        """Place it to temporal package directory"""
+        rootdir = env.tempdir().joinpath("handlers")
+        path = pathlib.Path(path)
+        if not path.exists():
+            raise ValueError(f"{path} does not exist")
+        if path.is_file():
+            pkgfile = rootdir.joinpath(self.module_name + ".py")
+            shutil.copy(path, pkgfile)
+            L.debug("copy file from %s into %s", path, pkgfile)
+        else:
+            pkgdir = rootdir.joinpath(self.module_name)
+            if pkgdir.exists():
+                shutil.rmtree(pkgdir)
+            shutil.copytree(path, pkgdir)
+            L.debug("copy tree from %s into %s", path, pkgdir)
+        if dandori.log.get_levelname() == "DEBUG":
+            ops.Operation().run(["ls", "-alh", str(rootdir)])
+
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
         raise NotImplementedError()
@@ -46,17 +65,7 @@ class LocalHandlerLoader(HandlerLoader):
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
-        rootdir = env.tempdir().joinpath("handlers")
-        path = pathlib.Path(self._path)
-        if not path.exists():
-            raise ValueError(f"{path} does not exist")
-        if path.is_file():
-            shutil.copy(path, rootdir.joinpath(self.module_name + ".py"))
-        else:
-            pkgdir = rootdir.joinpath(self.module_name)
-            if pkgdir.exists():
-                shutil.rmtree(pkgdir)
-            shutil.copytree(path, pkgdir)
+        super().copy_package(self._path)
 
 
 class GitHandlerLoader(HandlerLoader):
@@ -89,17 +98,7 @@ class GitHandlerLoader(HandlerLoader):
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
         cloned_path = self._clone()
-        rootdir = env.tempdir().joinpath("handlers")
-        L.debug("Deploying git handler: from %s to %s", cloned_path, rootdir)
-        if not cloned_path.exists():
-            raise ValueError(f"{cloned_path} does not exist")
-        if cloned_path.is_file():
-            shutil.copy(cloned_path, rootdir.joinpath(self._module_name + ".py"))
-        else:
-            pkgdir = rootdir.joinpath(self._module_name)
-            if pkgdir.exists():
-                shutil.rmtree(pkgdir)
-            shutil.copytree(cloned_path, pkgdir)
+        super().copy_package(cloned_path)
 
     def _clone(self) -> pathlib.Path:
         """Clone this repo into dst"""
