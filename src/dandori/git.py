@@ -52,9 +52,17 @@ class SetupGit:
         op.run(["git", "config", "--global", 'url."https://github.com".insteadOf', "ssh://git@github.com"])
         op.run(["git", "config", "--global", "--add", 'url."https://github.com".insteadOf', "git://git@github.com"])
         op.run(["git", "config", "--global", "--add", 'url."https://github.com/".insteadOf', "git@github.com:"])
-        op.run(
-            ["git", "config", "--global", "--add", "credential.helper", "dandori-default"],
-        )
+        # first to fetch a existant config
+        cred_helpers = ["dandori-default"]
+        r = op.run(["git", "config", "--global", "--get-all", "credential.helper"])
+        if r.stdout:
+            for line in (x.strip() for x in r.stdout.split()):
+                if line:
+                    cred_helpers.append(line)
+        # reset config
+        op.run(["git", "config", "--global", "--unset-all", "credential.helper"])
+        for helper in cred_helpers:
+            op.run(["git", "config", "--global", "--add", "credential.helper", helper])
         if dandori.log.get_levelname() == "DEBUG":
             op.run(["git", "config", "--global", "--list"])
 
