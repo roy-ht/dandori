@@ -6,7 +6,6 @@ import sys
 import ruamel.yaml
 from box import Box
 
-import dandori.env
 import dandori.log
 import dandori.run
 
@@ -34,7 +33,6 @@ def main():
     """entrypoint of dandori command"""
     sys.stdout.reconfigure(line_buffering=True)
     args = _parse_args()
-    dandori.env.setup()
     cpath = args.config_file
     options = _parse_options(args.options)
     runner = dandori.run.Runner(cpath, options=options)

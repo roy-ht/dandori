@@ -42,14 +42,14 @@ class Runner:
         """Setup config, execute function"""
         ctx = self._create_context()
         with self._setup():
+
             self._execute(ctx, invoke_function)
 
     def _execute(self, ctx: Context, invoke_function: T.Optional[str]):
+        # First to deploy packages
         for handler in ctx.cfg.handlers:
-            condition = handler.get_condition(ctx.gh.event_name)
-            if not condition.check(ctx):
-                L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
-                continue
+            handler.deploy()
+        for handler in ctx.cfg.handlers:
             if invoke_function:
                 func_name = invoke_function
             else:
