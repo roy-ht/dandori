@@ -99,7 +99,11 @@ class GitHandlerLoader(HandlerLoader):
     def _clone(self) -> pathlib.Path:
         """Clone this repo into dst"""
         op = ops.Operation()
-        root = env.cachedir().joinpath(self._org, self._repo, self._revision)
+        if env.is_local():
+            root = env.tempdir().joinpath(self._org, self._repo, self._revision)
+        else:
+            # remote job do not clone repo multiple times
+            root = env.cachedir().joinpath(self._org, self._repo, self._revision)
         if root.is_dir():
             L.verbose1("Use repository cache: %s", root)
             if dandori.log.get_levelname() == "DEBUG":
