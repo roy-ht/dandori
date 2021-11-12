@@ -42,9 +42,13 @@ class Runner:
         """Setup config, execute function"""
         ctx = self._create_context()
         with self._setup():
+
             self._execute(ctx, invoke_function)
 
     def _execute(self, ctx: Context, invoke_function: T.Optional[str]):
+        # First to deploy packages
+        for handler in ctx.cfg.handlers:
+            handler.deploy()
         for handler in ctx.cfg.handlers:
             if invoke_function:
                 func_name = invoke_function

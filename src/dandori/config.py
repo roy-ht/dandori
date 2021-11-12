@@ -19,7 +19,6 @@ class HandlerLoader:
     def __init__(self, name: str):
         """Handler loader for local path"""
         self._module_name = name
-        self._deployed = False
 
     @property
     def module_name(self):
@@ -28,9 +27,6 @@ class HandlerLoader:
 
     def load_module(self):
         """load module"""
-        if not self._deployed:
-            self._deployed = True
-            self.deploy_package()
         return importlib.import_module(f"dandori.handlers.{self._module_name}")
 
     def copy_package(self, path):
@@ -52,7 +48,7 @@ class HandlerLoader:
         if dandori.log.get_levelname() == "DEBUG":
             ops.Operation().run(["ls", "-alh", str(rootdir)])
 
-    def deploy_package(self):
+    def deploy(self):
         """Retrieve package files and place it to temporal package directory"""
         raise NotImplementedError()
 
@@ -63,7 +59,7 @@ class LocalHandlerLoader(HandlerLoader):
         super().__init__(name)
         self._path = path
 
-    def deploy_package(self):
+    def deploy(self):
         """Retrieve package files and place it to temporal package directory"""
         super().copy_package(self._path)
 
@@ -95,7 +91,7 @@ class GitHandlerLoader(HandlerLoader):
         else:
             return f"https://github.com/{self._org}/{self._repo}.git"
 
-    def deploy_package(self):
+    def deploy(self):
         """Retrieve package files and place it to temporal package directory"""
         cloned_path = self._clone()
         super().copy_package(cloned_path)
@@ -143,6 +139,10 @@ class Handler:
     def name(self):
         """module/package name in configuration or automatically named"""
         return self._loader.module_name
+
+    def deploy(self):
+        """Deploy backyard package files"""
+        self._loader.deploy()
 
     def get_function(self, func_name: str):
         """Run function corresponding to the action name
