@@ -90,6 +90,7 @@ class GitHandlerLoader(HandlerLoader):
         """Retrieve package files and place it to temporal package directory"""
         cloned_path = self._clone()
         rootdir = env.tempdir().joinpath("handlers")
+        L.debug("Deploying git handler: from %s to %s", cloned_path, rootdir)
         if not cloned_path.exists():
             raise ValueError(f"{cloned_path} does not exist")
         if cloned_path.is_file():
