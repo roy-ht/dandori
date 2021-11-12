@@ -46,10 +46,6 @@ class Runner:
 
     def _execute(self, ctx: Context, invoke_function: T.Optional[str]):
         for handler in ctx.cfg.handlers:
-            condition = handler.get_condition(ctx.gh.event_name)
-            if not condition.check(ctx):
-                L.verbose1("%s: skip handler for %s because of condition failed", handler.name, ctx.gh.event_name)
-                continue
             if invoke_function:
                 func_name = invoke_function
             else:

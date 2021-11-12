@@ -2,44 +2,24 @@ from __future__ import annotations
 
 import dataclasses
 import importlib
-import os
 import pathlib
 import pprint
 import re
 import shutil
-import typing as T
 
 from box import Box
 
 import dandori.log
-from dandori import env, exception, ops
-
-if T.TYPE_CHECKING:
-    from dandori.context import Context
-
+from dandori import env, exception, git, ops
 
 L = dandori.log.get_logger(__name__)
-
-
-class Condition:
-    def __init__(self, src: T.Optional[dict] = None):
-        """Represents handler condition to execute function or not
-
-        Args:
-            src (T.Optional[dict], optional): configuration object. Defaults to None.
-        """
-        self._src = src
-
-    def check(self, ctx: Context):  # pylint: disable=unused-argument
-        """Check if execute handler or not"""
-        L.warning("Condition check does not implemented yet")
-        return True
 
 
 class HandlerLoader:
     def __init__(self, name: str):
         """Handler loader for local path"""
         self._module_name = name
+        self._deployed = False
 
     @property
     def module_name(self):
@@ -48,6 +28,9 @@ class HandlerLoader:
 
     def load_module(self):
         """load module"""
+        if not self._deployed:
+            self._deployed = True
+            self.deploy_package()
         return importlib.import_module(f"dandori.handlers.{self._module_name}")
 
     def deploy_package(self):
@@ -81,24 +64,27 @@ class GitHandlerLoader(HandlerLoader):
         self,
         *,
         name: str,
-        url: str,
-        revision: T.Optional[str] = None,
-        path: T.Optional[str] = None,
-        token_env: T.Optional[str] = None,
+        org: str,
+        repo: str,
+        protocol: str = "ssh",
+        revision: str = "",
+        path: str = "",
     ):
-        """Handler loader for git url
-
-        elif token_env -> use github token and trying to access via https
-        else -> default ssh access
-        """
+        """Handler loader for git url"""
         super().__init__(name)
-        self._url = url
+        self._org = org
+        self._repo = repo
+        self._protocol = protocol
         self._revision = revision
-        self._path = path or ""
-        self._token_env = token_env
-        if not self._token_env:
-            if "DANDORI_DEFAULT_PAT" in os.environ:
-                self._token_env = "DANDORI_DEFAULT_PAT"
+        self._path = path
+
+    @property
+    def url(self):
+        """clone url"""
+        if self._protocol == "ssh":
+            return f"git@github.com:{self._org}/{self._repo}.git"
+        else:
+            return f"https://github.com/{self._org}/{self._repo}.git"
 
     def deploy_package(self):
         """Retrieve package files and place it to temporal package directory"""
@@ -114,53 +100,31 @@ class GitHandlerLoader(HandlerLoader):
                 shutil.rmtree(pkgdir)
             shutil.copytree(cloned_path, pkgdir)
 
-    def _clone(self):
+    def _clone(self) -> pathlib.Path:
         """Clone this repo into dst"""
         op = ops.Operation()
-        dstdir = env.tempdir().joinpath("remote_git", self.module_name)
-        dstdir.mkdir(parents=True, exist_ok=True)
-        cwd = str(dstdir)
-        op.run(["git", "init"], cwd=cwd, echo=False)
-        if not env.is_local():
-            if self._token_env:
-                if not os.environ.get(self._token_env):
-                    raise ValueError(f"Environment variable {self._token_env} not found.")
-                L.verbose3("Git auth with token %s", self._token_env)
-                op.run(
-                    ["git", "config", "--local", 'url."https://github.com".insteadOf', "ssh://git@github.com"], cwd=cwd
-                )
-                op.run(
-                    ["git", "config", "--local", "--add", 'url."https://github.com".insteadOf', "git://git@github.com"],
-                    cwd=cwd,
-                )
-                op.run(
-                    ["git", "config", "--local", "--add", 'url."https://github.com/".insteadOf', "git@github.com:"],
-                    cwd=cwd,
-                )
-                op.run(["git", "config", "--global", "credential.helper", f"dandori git {self._token_env}"], cwd=cwd)
-
-        L.verbose2("git clone: url=%s, revision=%s, path=%s", self._url, self._revision, self._path)
-        op.run(["git", "remote", "add", "origin", self._url], cwd=cwd, echo=False)
-        rev = self._revision
-        if not rev:
-            r = op.run(["git", "remote", "show", "origin"], cwd=cwd, echo=False)
-            mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
-            if mo:
-                rev = mo[1].strip()
-            else:
-                rev = "main"
-            L.verbose2("Revision automatically set: %s", rev)
-        op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, echo=False)
-        op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, echo=False)
-        op.run(
-            ["git", "config", "--global", "--unset", "credential.helper", f"dandori git {self._token_env}"],
-            cwd=cwd,
-        )
-        shutil.rmtree(dstdir.joinpath(".git"))
+        root = env.cachedir().joinpath(self._org, self._repo, self._revision)
+        if not root.is_dir():
+            root.mkdir(parents=True, exist_ok=True)
+            cwd = str(root)
+            L.verbose2("git clone: url=%s, revision=%s, path=%s", self.url, self._revision, self._path)
+            op.run(["git", "init"], cwd=cwd, echo=False)
+            op.run(["git", "remote", "add", "origin", self.url], cwd=cwd, echo=False)
+            rev = self._revision
+            if not rev:
+                r = op.run(["git", "remote", "show", "origin"], cwd=cwd, echo=False)
+                mo = re.search(r"^\s+HEAD branch: (.+)$", r.stdout.decode("utf-8"), re.M)
+                if mo:
+                    rev = mo[1].strip()
+                else:
+                    rev = "main"
+                L.verbose2("Revision automatically set: %s", rev)
+            op.run(["git", "fetch", "--depth", "1", "origin", rev], cwd=cwd, echo=False)
+            op.run(["git", "-c", "advice.detachedHead=false", "checkout", "FETCH_HEAD"], cwd=cwd, echo=False)
         if self._path:
-            return dstdir.joinpath(self._path)
+            return root.joinpath(self._path)
         else:
-            return dstdir
+            return root
 
 
 class Handler:
@@ -170,7 +134,6 @@ class Handler:
         """user defined script package/module"""
         self._loader = loader
         self._mod = None
-        self._loader.deploy_package()
 
     @property
     def name(self):
@@ -185,15 +148,6 @@ class Handler:
         """
         self._load_module()
         return getattr(self._mod, func_name, None)
-
-    def get_condition(self, event_name: str):
-        """Get condition object correspond to event"""
-        self._load_module()
-        if not hasattr(self._mod, "conditions"):
-            return Condition()
-        else:
-            conditions = self._mod.conditions()  # type: ignore
-            return Condition(conditions[event_name])
 
     def _load_module(self):
         if self._mod is None:
@@ -238,6 +192,7 @@ class ConfigLoader:
         else:
             raise exception.DandoriError(f"Unsupported configuration format: {path}")
         L.debug("Config: %s", pprint.pformat(conf))
+        self._setup_git(conf)
         return Config(
             local=env.is_local(), handlers=self._parse_handlers(conf, path.parent), options=self._parse_options(conf)
         )
@@ -249,8 +204,6 @@ class ConfigLoader:
         - string: local directory
         - {'name', 'path'}: local directory with package name
         - {'name', 'git': <git config>}: git repo
-          - key_file: path to ssh key
-          - token_env: environment variable name of GITHUB_TOKEN
         """
         rootdir = env.tempdir().joinpath("handlers")
         rootdir.mkdir(exist_ok=True)
@@ -283,3 +236,8 @@ class ConfigLoader:
 
     def _parse_options(self, conf: Box):
         return conf.get("options", Box())
+
+    def _setup_git(self, conf: Box):
+        git_option = conf.get("git")
+        if git_option:
+            git.setup(git_option)
