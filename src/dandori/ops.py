@@ -30,6 +30,8 @@ class Operation:
         env = os.environ.copy()
         env.update(kwargs.get("env", {}))
         kwargs["env"] = env
+        if not secret and dandori.log.get_levelname() == "DEBUG":
+            kwargs["echo"] = True
         try:
             if not secret:
                 L.verbose3("Execute: %s", args)

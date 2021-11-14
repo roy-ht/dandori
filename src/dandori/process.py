@@ -11,8 +11,6 @@ import asyncio
 import subprocess as sp
 import typing as T
 
-from dandori import log
-
 STREAM_LIMIT = 2 ** 23  # 8MB instead of default 64kb, override it if you need
 
 
@@ -83,8 +81,6 @@ def run(args: T.Union[str, list[str]], echo=True, **kwargs) -> sp.CompletedProce
 
     echo(default: True) <- print to stdout or not
     """
-    if not echo and log.get_levelname() == "DEBUG":
-        echo = True
     check = kwargs.pop("check", False)
 
     loop = asyncio.get_event_loop()
