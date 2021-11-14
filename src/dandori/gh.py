@@ -196,7 +196,10 @@ class GitHub:
         if pathlib.Path(".git").is_dir():
             ops = dandori.ops.Operation()
             pr = self.pull_request()
-            ref = pr["merge_commit_sha"]
+            ref = pr.get("merge_commit_sha")
+            if not ref:
+                L.debug("Seems not mergeable. check out head branch instead")
+                ref = pr.head.sha
             L.info("Checkout to merge commit of PR #%d: %s", self.issue_number, ref)
             ops.run(["git", "fetch", "origin", f"+{ref}:refs/remotes/origin/merge_commit"])
             ops.run(["git", "checkout", "--force", "-B", "merge_commit", "refs/remotes/origin/merge_commit"])
