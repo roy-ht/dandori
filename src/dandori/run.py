@@ -75,11 +75,11 @@ class Runner:
                 ctx.resp.append_dict(handler.name, {})
 
     def _create_context(self) -> Context:
-        config = ConfigLoader().load(self._cfg_path)
-        if config.local:
+        if env.is_local():
             gh = GitHubMock()
         else:
             gh = GitHub()  # type: ignore
+        config = ConfigLoader().load(self._cfg_path)
         config.options.merge_update(self._options)
         L.verbose3("Options: %s", config.options)
         ops = Operation()
