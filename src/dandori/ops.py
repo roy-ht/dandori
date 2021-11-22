@@ -73,7 +73,9 @@ class Operation:
             self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
         if not venv_dir.exists():
             raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
-        return {
+        env = {
             "VIRTUAL_ENV": str(venv_dir),
             "PATH": f"{venv_dir}/bin:{os.environ['PATH']}",
         }
+        self.run(["pip", "install", "-U", "pip", "setuptools", "wheel"])
+        return env
