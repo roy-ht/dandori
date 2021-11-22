@@ -69,13 +69,13 @@ class Operation:
 
     def _prepare_venv(self, python_path, name):
         venv_dir = dandori.env.tempdir() / name
-        if not venv_dir.exists():
-            self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
-        if not venv_dir.exists():
-            raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
         env = {
             "VIRTUAL_ENV": str(venv_dir),
             "PATH": f"{venv_dir}/bin:{os.environ['PATH']}",
         }
-        self.run(["pip", "install", "-U", "pip", "setuptools", "wheel"])
+        if not venv_dir.exists():
+            self.run([python_path, "-m", "venv", "--clear", "--symlinks", str(venv_dir)])
+            self.run(["pip", "install", "-U", "pip", "setuptools", "wheel"], env=env)
+        if not venv_dir.exists():
+            raise dandori.exception.Failure(f"Virtualenv directory does not exist: {venv_dir}")
         return env
