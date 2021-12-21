@@ -77,5 +77,4 @@ class Operation:
             "VIRTUAL_ENV": str(venv_dir),
             "PATH": f"{venv_dir}/bin:{os.environ['PATH']}",
         }
-        self.run(["pip", "install", "-U", "pip", "setuptools", "wheel"])
         return env
